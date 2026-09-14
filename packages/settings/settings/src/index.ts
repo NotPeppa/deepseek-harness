@@ -890,4 +890,30 @@ export interface SettingsSectionHooks<T> {
   validate?: (value: T) => void
 }
 
+/**
+ * @deprecated Compat re-export of the pre-refactor free function. Brand a raw
+ * string as a {@link SettingsNamespace}; identical to the internal parser.
+ * Kept so plugins built against the old `@deepseek-ai/dsh-settings` API load.
+ */
+export const settingsNamespace = parseSettingsNamespace
+
+/**
+ * @deprecated Compat shim for the pre-refactor free function; delegates to
+ * {@link SettingsProvider#installSection} once the settings service is present.
+ * Kept so plugins built against the old `@deepseek-ai/dsh-settings` API load.
+ */
+export function installSettingsSection<T>(
+  ctx: Context,
+  ns: string,
+  schema: z<T>,
+  entry: T,
+  hooks: SettingsSectionHooks<T>,
+): void {
+  ctx.inject(['settings'], (sctx) => {
+    // Cast: installSection's branded-namespace generic can't be satisfied by a
+    // plain string param; ns is validated inside register regardless.
+    sctx.settings.installSection(ctx, ns as never, schema, entry, hooks)
+  })
+}
+
 export default SettingsProvider

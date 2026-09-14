@@ -119,6 +119,11 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # Branch facts and branch switching for registered workspaces, over Typert
+    # Remote. Host-only; the branch pill is a separate UI plugin.
+    - id: git-controller
+      name: '@deepseek-ai/dsh-api-git-controller'
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -314,6 +319,10 @@
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
       name: '@deepseek-ai/dsh-client-ui-goal'
+
+    # Branch pill for the blank-session hero and the conversation input dock.
+    - id: ui-git-branch
+      name: '@deepseek-ai/dsh-client-ui-git-branch'
 
     # The feedback surface: Like/Dislike in the assistant-message action
     # strip, the feedback dialog behind Dislike and /feedback with its

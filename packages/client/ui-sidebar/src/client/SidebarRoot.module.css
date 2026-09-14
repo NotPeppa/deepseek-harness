@@ -13,7 +13,8 @@
   height: 100%;
   padding: 6px var(--dsh-sidebar-inline-padding);
   box-sizing: border-box;
-  background: var(--dsw-specific-sidebar-fill);
+  /* Translucent while a custom background shows through; 100% (unchanged) otherwise. */
+  background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) var(--dsh-bg-panel-alpha, 100%), transparent);
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   /* The sidebar is elevated above the conversation surface, so a revealed

@@ -94,6 +94,8 @@ function kitFor(snapshot: SessionSnapshot, injected: Partial<QueueDockInjected> 
     inputActions: { setDraft: () => {}, submit: () => {} } as never,
     session: snapshot,
     input: INPUT_STATE,
+    // The dock renders in both phases; these specs exercise the active one.
+    hero: false,
     updateQueue: vi.fn(() => Promise.resolve()),
     notify: vi.fn(),
     loadImage: vi.fn(() => Promise.resolve('blob:unused')),

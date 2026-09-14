@@ -8,6 +8,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-settings'
 import type {
   WebFetchProvider,
   WebFetchRequest,
@@ -37,6 +38,12 @@ declare module '@deepseek-ai/cordis' {
     web: WebRuntime
   }
 }
+
+/**
+ * Settings namespace carrying provider selection, so a configuration surface
+ * can switch search or fetch backends without editing the composition.
+ */
+export const WEB_SETTINGS_NAMESPACE = 'web'
 
 /** Selection inputs for execution-time provider resolution. */
 interface Selection<P> {
@@ -84,13 +91,36 @@ export class WebRuntime extends Service {
 
   private searchProviders = new Map<string, WebSearchProvider>()
   private fetchProviders = new Map<string, WebFetchProvider>()
-  private readonly searchProviderId: string | undefined
-  private readonly fetchProviderId: string | undefined
+  /**
+   * The currently authoritative selection: the settings section while one is
+   * attached, the composition entry otherwise. Selection is read per operation,
+   * so changing the provider in Settings needs no restart.
+   */
+  private current: () => WebRuntimeConfig
 
   constructor(ctx: Context, config: WebRuntimeConfig = {}) {
     super(ctx, 'web')
-    this.searchProviderId = config.searchProvider ?? process.env.DSH_WEB_SEARCH_PROVIDER
-    this.fetchProviderId = config.fetchProvider ?? process.env.DSH_WEB_FETCH_PROVIDER
+    this.current = () => config
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, WEB_SETTINGS_NAMESPACE, WebRuntime.Config, config, {
+        setSource: (source) => {
+          this.current = source
+        },
+        // Selection is resolved per operation, so a committed change needs no
+        // re-registration of anything here.
+        onChange: () => {},
+      })
+    })
+  }
+
+  /** Configured search provider id, or the operational environment override. */
+  private get searchProviderId(): string | undefined {
+    return this.current().searchProvider ?? process.env.DSH_WEB_SEARCH_PROVIDER
+  }
+
+  /** Configured fetch provider id, or the operational environment override. */
+  private get fetchProviderId(): string | undefined {
+    return this.current().fetchProvider ?? process.env.DSH_WEB_FETCH_PROVIDER
   }
 
   /**

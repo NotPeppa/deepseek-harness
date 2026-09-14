@@ -17,7 +17,7 @@ import css from './PluginsSettingsSection.module.css'
 export type ConfigurablePluginsTabProps =
   PropsRuntime<'settings.plugins.tab'>
   & PropsLocale<'settings.plugins'>
-  & PropsRenderSlots<'settings.plugin.item'>
+  & PropsRenderSlots<'settings.plugin.item' | 'web-ui.plugin.item'>
   & InjectFace<ConfigurablePluginsTabFace>
 
 /**
@@ -36,6 +36,7 @@ export function ConfigurablePluginsTab(props: ConfigurablePluginsTabProps) {
           // rather than a position that shifts as cards arrive.
           <Fragment key={ns}>{renderSlot('settings.plugin.item', {}, { entryKey: ns })}</Fragment>
         ))}
+        {renderSlot('web-ui.plugin.item', {})}
       </ul>
     )
   }

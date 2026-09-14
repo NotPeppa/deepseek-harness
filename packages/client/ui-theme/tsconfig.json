@@ -1,8 +1,22 @@
 {
-  "extends": "../../../tsconfig.base.client.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "lib": [
+      "ES2024",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node",
+      "client-build-environment"
+    ],
+    "jsx": "react-jsx",
+    "typeRoots": [
+      "../../../scripts/types",
+      "../../../node_modules/@types"
+    ]
   },
   "include": [
     "src"
@@ -37,6 +51,9 @@
     },
     {
       "path": "../ui-settings"
+    },
+    {
+      "path": "../../util/home-paths"
     }
   ]
 }

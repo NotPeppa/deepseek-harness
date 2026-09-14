@@ -508,6 +508,31 @@
   gap: 4px;
 }
 
+/* The modality picker is a row of choices, not a value field, so it spans the
+   advanced grid instead of sitting in one auto-fit column. */
+.modelField[data-modality-field] {
+  grid-column: 1 / -1;
+}
+
+.modalityOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.modalityOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.modalityOption input:disabled + span {
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .modelFieldLabel {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
@@ -689,4 +714,29 @@ select.input {
   font-size: 13px;
   line-height: 20px;
   text-align: center;
+}
+
+/* The reasoning picker is a mode plus a list of levels, not a value field, so
+   it spans the advanced grid like the modality picker beside it. */
+.modelField[data-reasoning-field] {
+  grid-column: 1 / -1;
+}
+
+.reasoningLevels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.reasoningLevel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The wire spelling is a short token (`high`, `ultra`), so the field stays
+   narrow rather than stretching across the grid it sits in. */
+.reasoningWire {
+  max-width: 180px;
 }

@@ -29,18 +29,56 @@ export const FONT_SIZE_MAX = 17
 /** Content font size when the user-settings document has no override (px). */
 export const DEFAULT_FONT_SIZE = 14
 
+/**
+ * Route serving and receiving the Host-stored wallpaper. Shared here because
+ * both halves need it and this module carries no Node imports.
+ */
+export const BACKGROUND_ROUTE = '/api/dsh-theme/background'
+
+/** Field carrying the custom background image URL (empty disables the feature). */
+export const BACKGROUND_IMAGE_FIELD = 'backgroundImage'
+
+/** Field carrying the custom background blur radius. */
+export const BACKGROUND_BLUR_FIELD = 'backgroundBlur'
+
+/** Field carrying the custom background opacity percentage. */
+export const BACKGROUND_OPACITY_FIELD = 'backgroundOpacity'
+
+/** No custom background when the user-settings document has no override. */
+export const DEFAULT_BACKGROUND_IMAGE = ''
+
+/** Smallest / largest / default background blur radius (px). */
+export const BACKGROUND_BLUR_MIN = 0
+export const BACKGROUND_BLUR_MAX = 40
+export const DEFAULT_BACKGROUND_BLUR = 0
+
+/** Smallest / largest / default background opacity (percent the wallpaper shows). */
+export const BACKGROUND_OPACITY_MIN = 0
+export const BACKGROUND_OPACITY_MAX = 100
+export const DEFAULT_BACKGROUND_OPACITY = 30
+
 /** Durable theme section shared by the Host schema and the browser scope. */
 export interface ThemeSettings {
   /** Selected built-in preference. */
   preference: ThemePreference
   /** Conversation content font size in px (integer within {@link FONT_SIZE_MIN}..{@link FONT_SIZE_MAX}). */
   fontSize: number
+  /** Custom background image URL; empty string disables the custom background. */
+  backgroundImage: string
+  /** Background blur radius in px (integer within {@link BACKGROUND_BLUR_MIN}..{@link BACKGROUND_BLUR_MAX}). */
+  backgroundBlur: number
+  /** Background opacity in percent (integer within {@link BACKGROUND_OPACITY_MIN}..{@link BACKGROUND_OPACITY_MAX}). */
+  backgroundOpacity: number
 }
 
 /** Durable theme schema; also the wire envelope the browser scope validates against. */
 export const ThemeSettingsSchema: z<ThemeSettings> = z.object({
   [THEME_PREFERENCE_FIELD]: z.union([...THEME_PREFERENCES]).default(DEFAULT_PREFERENCE),
   [FONT_SIZE_FIELD]: z.number().step(1).min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(DEFAULT_FONT_SIZE),
+  [BACKGROUND_IMAGE_FIELD]: z.string().default(DEFAULT_BACKGROUND_IMAGE),
+  [BACKGROUND_BLUR_FIELD]: z.number().step(1).min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).default(DEFAULT_BACKGROUND_BLUR),
+  [BACKGROUND_OPACITY_FIELD]: z.number().step(1)
+    .min(BACKGROUND_OPACITY_MIN).max(BACKGROUND_OPACITY_MAX).default(DEFAULT_BACKGROUND_OPACITY),
 })
 
 /**

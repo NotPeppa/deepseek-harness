@@ -89,7 +89,10 @@
   max-width: calc(100vw - 48px);
   border-radius: 32px;
   overflow: hidden;
-  background: var(--dsw-alias-bg-layer-2);
+  /* Translucent while a custom background shows through (the mask below
+     already blurs and dims it, so the text keeps a readable ground); 100%
+     — unchanged — otherwise. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) var(--dsh-bg-panel-alpha, 100%), transparent);
   box-shadow: var(--dsw-elevation-prominent);
   /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens.
      Declared on the panel rather than the scrolling `.options` child so the

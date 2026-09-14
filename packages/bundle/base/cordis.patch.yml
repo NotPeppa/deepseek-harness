@@ -444,6 +444,16 @@
       config:
         apiKeyEnv: DEEPSEEK_API_KEY
 
+    # TinyFish search, off until a key exists: it registers unconditionally but
+    # only serves searches once `web.searchProvider` names it, which the
+    # TinyFish card writes when the user enables it. Its key is a credential
+    # reference resolved per search, so pasting one takes effect without a
+    # restart.
+    - id: web-search-tinyfish
+      name: '@deepseek-ai/dsh-web-search-tinyfish'
+      config:
+        apiKeyEnv: TINYFISH_API_KEY
+
     - id: web-fetch-http
       name: '@deepseek-ai/dsh-web-fetch-http'
 

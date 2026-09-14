@@ -162,6 +162,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
+    /**
+     * Context chips shown beside the blank-session Workspace chip. A list, so
+     * several features can contribute a chip without contending for one seat;
+     * root-scoped because the Hero exists before any Session does.
+     */
+    'conversation.hero.context': { kind: 'list'; scope: 'root'; owner: HeroContextOwnerProps }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -242,6 +248,12 @@ export interface ConversationHeaderLineageOwnerProps {
 export interface InputZone {
   readonly session: SessionSnapshot
   readonly input: InputState
+  /**
+   * Whether the blank-session Hero is showing. The dock renders in both
+   * phases — a blank session is still a session — so an entry that also has a
+   * Hero seat reads this to keep from appearing twice on one screen.
+   */
+  readonly hero: boolean
 }
 
 /** Conversation View entries obtain their data from registered standard hooks. */
@@ -373,6 +385,7 @@ export type ConversationSlotProps =
     | 'conversation.hero.brand.mark'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.hero.context'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>
@@ -403,6 +416,16 @@ export type ConversationSessionHeaderSlotProps =
 /** Full props of the draft-attachment renderer. */
 export type ComposerAttachmentsProps =
   PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
+
+/** Owner share for the blank-session context chips. */
+export interface HeroContextOwnerProps {
+  /**
+   * Workspace a New Session would open in, when one is resolved. Passed down
+   * rather than re-derived: the Hero already settled this choice, including a
+   * pick the user just made that no Session references yet.
+   */
+  workspaceId?: WorkspaceId | undefined
+}
 
 /** Owner share common to blank-session Workspace pickers. */
 export interface EmptyWorkspaceOwnerProps {

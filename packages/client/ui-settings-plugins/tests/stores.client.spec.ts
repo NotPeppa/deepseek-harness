@@ -19,6 +19,10 @@ import {
   type SubagentModelSelectionSettings,
 } from '../src/client/subagent-model-selection-card-controller.ts'
 import { WebSearchCardController, type WebSearchSettings } from '../src/client/web-search-card-controller.ts'
+import {
+  PlanModelSwitchCardController, routeValue, splitRouteValue,
+  type PlanModelSwitchSettings,
+} from '../src/client/plan-model-switch-card-controller.ts'
 
 /** Make the stub behave like a Host that accepts every write. */
 function acceptWrites<T>(host: StubSettingsScope<T>): void {
@@ -64,7 +68,12 @@ function modelsApi(options: {
   groups?: readonly {
     id: string
     name: string
-    models: readonly { id: string; name: string }[]
+    models: readonly {
+      id: string
+      name: string
+      /** Advertised efforts, which only a route-selecting card reads. */
+      reasoning?: { efforts: readonly { id: string; name: string }[] }
+    }[]
   }[]
   failures?: readonly { id: string; name: string; message: string }[]
   error?: string
@@ -1156,5 +1165,114 @@ describe('ConfigurablePluginsTabController', () => {
 
     expect(controller.inject().hooks.configurablePlugins.getSnapshot())
       .toEqual({ loaded: true, namespaces: [] })
+  })
+})
+
+describe('PlanModelSwitchCardController', () => {
+  it('splits a route value on its FIRST separator, so a slashed model id survives', () => {
+    expect(splitRouteValue('deepseek-official/deepseek/v4-flash'))
+      .toEqual({ provider: 'deepseek-official', model: 'deepseek/v4-flash' })
+    expect(routeValue('deepseek-official', 'deepseek/v4-flash'))
+      .toBe('deepseek-official/deepseek/v4-flash')
+    // Either half missing is no route at all.
+    expect(routeValue('alpha', '')).toBe('')
+    expect(splitRouteValue('')).toEqual({ provider: '', model: '' })
+  })
+
+  it('offers the live catalog grouped by provider, ahead of the no-switch choice', async () => {
+    const host = stubSettingsScope<PlanModelSwitchSettings>()
+    const models = modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
+    })
+    const controller = new PlanModelSwitchCardController(host.scope, models.ctx)
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+
+    await vi.waitFor(() => {
+      expect(face.hooks.planModelSwitchCard.getSnapshot().catalogStatus).toBe('ready')
+    })
+    expect(face.hooks.planModelSwitchCard.getSnapshot().planning.choices).toEqual([
+      { value: '', label: '' },
+      { value: 'alpha/fast', label: 'Fast', group: 'Alpha API' },
+    ])
+  })
+
+  it('keeps a stored route the catalog no longer advertises', async () => {
+    const host = stubSettingsScope<PlanModelSwitchSettings>()
+    const models = modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
+    })
+    const controller = new PlanModelSwitchCardController(host.scope, models.ctx)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { executingProvider: 'legacy', executingModel: 'old' },
+      user: { executingProvider: 'legacy', executingModel: 'old' },
+    })
+    const face = controller.inject()
+
+    await vi.waitFor(() => {
+      expect(face.hooks.planModelSwitchCard.getSnapshot().catalogStatus).toBe('ready')
+    })
+    const executing = face.hooks.planModelSwitchCard.getSnapshot().executing
+    expect(executing.route.text).toBe('legacy/old')
+    expect(executing.choices).toContainEqual({ value: 'legacy/old', label: 'old', group: 'legacy' })
+  })
+
+  it('stages both halves of a route together and saves them as one card', async () => {
+    const host = stubSettingsScope<PlanModelSwitchSettings>()
+    acceptWrites(host)
+    const models = modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
+    })
+    const controller = new PlanModelSwitchCardController(host.scope, models.ctx)
+    host.publish({ status: 'ready', writable: true, revision: 1, value: {}, user: {} })
+    const face = controller.inject()
+
+    face.selectRoute('planning', 'alpha/fast')
+    expect(face.hooks.planModelSwitchCard.getSnapshot().planning.route.text).toBe('alpha/fast')
+    face.save()
+
+    await vi.waitFor(() => {
+      expect(host.set).toHaveBeenCalledWith('planningProvider', 'alpha')
+      expect(host.set).toHaveBeenCalledWith('planningModel', 'fast')
+    })
+  })
+
+  it('offers the chosen model its own efforts, and clears a stale one on a route change', async () => {
+    const host = stubSettingsScope<PlanModelSwitchSettings>()
+    acceptWrites(host)
+    const models = modelsApi({
+      groups: [{
+        id: 'alpha',
+        name: 'Alpha API',
+        models: [
+          { id: 'fast', name: 'Fast', reasoning: { efforts: [{ id: 'high', name: 'High' }] } },
+          { id: 'plain', name: 'Plain' },
+        ],
+      }],
+    })
+    const controller = new PlanModelSwitchCardController(host.scope, models.ctx)
+    host.publish({
+      status: 'ready',
+      writable: true,
+      value: { planningProvider: 'alpha', planningModel: 'fast', planningReasoningEffort: 'high' },
+      user: { planningProvider: 'alpha', planningModel: 'fast', planningReasoningEffort: 'high' },
+    })
+    const face = controller.inject()
+
+    await vi.waitFor(() => {
+      expect(face.hooks.planModelSwitchCard.getSnapshot().planning.efforts).toEqual([
+        { value: '', label: '' },
+        { value: 'high', label: 'High' },
+      ])
+    })
+
+    // A model that advertises no efforts offers none, and the effort the old
+    // model owned does not follow it.
+    face.selectRoute('planning', 'alpha/plain')
+    const planning = face.hooks.planModelSwitchCard.getSnapshot().planning
+    expect(planning.efforts).toEqual([])
+    expect(planning.effort.text).toBe('')
   })
 })

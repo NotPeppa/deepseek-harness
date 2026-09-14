@@ -19,6 +19,8 @@ import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
+import { ModalityField } from './ModalityField.tsx'
+import { ReasoningEffortsField } from './ReasoningEffortsField.tsx'
 import type { ModelsOperations } from './operations.ts'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
@@ -209,7 +211,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
-  const patch = (index: number, next: Record<string, string | number | undefined>): void => {
+  const patch = (index: number, next: Record<string, unknown>): void => {
     onChange(models.map((model, at) => {
       if (at !== index) return model
       // Rebuilt rather than spread over: an emptied optional field has to leave
@@ -433,6 +435,24 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                     onChange={(event) => { editCapacity(index, 'maxTokens', event.target.value) }}
                   />
                 </label>
+                <ModalityField
+                  value={model['input']}
+                  unset="inherit"
+                  index={index}
+                  disabled={disabled}
+                  t={t}
+                  // pi-ai spells this `input`, not llm-deepseek's
+                  // `inputModalities`; an empty list is its "inherit" state,
+                  // so it is stored rather than dropped as an empty value.
+                  onChange={(next) => { patch(index, { input: next }) }}
+                />
+                <ReasoningEffortsField
+                  value={model['reasoningEfforts']}
+                  index={index}
+                  disabled={disabled}
+                  t={t}
+                  onChange={(next) => { patch(index, { reasoningEfforts: next }) }}
+                />
               </div>
             )
             : null}

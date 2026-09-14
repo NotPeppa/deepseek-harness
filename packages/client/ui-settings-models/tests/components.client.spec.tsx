@@ -16,6 +16,7 @@ import { pathOps } from '../src/client/ProviderEditor.tsx'
 import {
   DeepSeekModelsEditor, formatCapacity, modelDrafts, parseCapacity, validateDeepSeekModels,
 } from '../src/client/DeepSeekModelsEditor.tsx'
+import { selectedModalities } from '../src/client/ModalityField.tsx'
 import { apiKeyFailure } from '../src/client/apiKey.ts'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { deriveKeyRef, ModelsSettingsStore } from '../src/client/store.ts'
@@ -979,6 +980,44 @@ describe('ModelsSection', () => {
       .toBe(en.contextWindowPlaceholder)
     expect(screen.getByLabelText<HTMLInputElement>(`${en.maxTokens} 1`).placeholder)
       .toBe(en.maxTokensPlaceholder)
+  })
+
+  it('reads an unset modality field per the adapter contract that owns it', () => {
+    // llm-deepseek: schema is .min(1).default(['text']), so unset is text-only
+    // and the empty array is never a state the row can be in.
+    expect(selectedModalities(undefined, 'text')).toEqual(['text'])
+    expect(selectedModalities([], 'text')).toEqual(['text'])
+    // llm-pi-ai: absent and empty both mean "no answer at this level", which
+    // inherits the route default and the installed catalog. Collapsing that to
+    // text would silently pin every custom-provider row to text-only.
+    expect(selectedModalities(undefined, 'inherit')).toEqual([])
+    expect(selectedModalities([], 'inherit')).toEqual([])
+    // Either way, a value outside the vocabulary is dropped rather than shown.
+    expect(selectedModalities(['image', 'video'], 'inherit')).toEqual(['image'])
+  })
+
+  it('modality picker defaults an unset row to text and refuses to clear the last one', () => {
+    const onChange = vi.fn()
+    render(<DeepSeekModelsEditor
+      models={[{ id: 'm' }]}
+      overridden={false}
+      defaultContextWindow={undefined}
+      defaultMaxTokens={undefined}
+      t={t}
+      disabled={false}
+      onChange={onChange}
+      onReset={vi.fn()}
+    />)
+    expandRow(1)
+    const text = screen.getByLabelText<HTMLInputElement>(`${en.modalityText} 1`)
+    const image = screen.getByLabelText<HTMLInputElement>(`${en.modalityImage} 1`)
+    // Unset is text-only (the adapter schema's default), not "nothing selected".
+    expect(text.checked).toBe(true)
+    expect(image.checked).toBe(false)
+    // The only selected modality cannot be unchecked: the schema refuses [].
+    expect(text.disabled).toBe(true)
+    fireEvent.click(image)
+    expect(onChange).toHaveBeenCalledWith([{ id: 'm', inputModalities: ['text', 'image'] }])
   })
 
   it('can empty and reset the model override, then clear optional fields without dropping hidden data', async () => {

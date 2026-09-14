@@ -1678,6 +1678,37 @@ export interface PlanModeConfig {
 
 Source: [`packages/plan/plan-mode/src/index.ts:64`](../packages/plan/plan-mode/src/index.ts)
 
+<a id="deepseek-aidsh-plan-model-switch"></a>
+
+## `@deepseek-ai/dsh-plan-model-switch`
+
+Requires: `planMode` · `sessionProjections`
+
+```ts config-catalog
+/** Plugin config; the settings section layers over it. */
+export interface Config extends PhaseRoutes {}
+
+/** Flat settings/config shape: one provider/model/effort triple per phase. */
+export interface PhaseRoutes {
+  /** LLM provider serving the planning phase; empty leaves planning unrouted. */
+  planningProvider?: string
+  /** Model serving the planning phase; empty leaves planning unrouted. */
+  planningModel?: string
+  /** Adapter-owned reasoning effort for the planning route. */
+  planningReasoningEffort?: string
+  /** LLM provider serving the execution phase; empty leaves execution unrouted. */
+  executingProvider?: string
+  /** Model serving the execution phase; empty leaves execution unrouted. */
+  executingModel?: string
+  /** Adapter-owned reasoning effort for the execution route. */
+  executingReasoningEffort?: string
+  /** Whether leaving plan mode folds the planning span into one summary. */
+  foldPlanning?: boolean
+}
+```
+
+Source: [`packages/plan/plan-model-switch/src/index.ts:48`](../packages/plan/plan-model-switch/src/index.ts)
+
 <a id="deepseek-aidsh-plugin-package-inventory-deepseek"></a>
 
 ## `@deepseek-ai/dsh-plugin-package-inventory-deepseek`
@@ -3257,7 +3288,7 @@ export interface WebRuntimeConfig {
 }
 ```
 
-Source: [`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
+Source: [`packages/web/web/src/index.ts:62`](../packages/web/web/src/index.ts)
 
 <a id="deepseek-aidsh-web-app"></a>
 
@@ -3386,6 +3417,26 @@ export interface Config {
 
 Source: [`packages/web/web-search-perplexity/src/index.ts:30`](../packages/web/web-search-perplexity/src/index.ts)
 
+<a id="deepseek-aidsh-web-search-tinyfish"></a>
+
+## `@deepseek-ai/dsh-web-search-tinyfish`
+
+Requires: `web`
+
+```ts config-catalog
+/** Plugin config (all optional — `apply` fills credential and constant defaults). */
+export interface Config {
+  /** Literal TinyFish API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
+  apiKey?: string
+  /** Credential reference resolved for each search; defaults to `TINYFISH_API_KEY`. */
+  apiKeyEnv?: string
+  /** Endpoint base; the search operation is its root path. */
+  baseURL?: string
+}
+```
+
+Source: [`packages/web/web-search-tinyfish/src/index.ts:42`](../packages/web/web-search-tinyfish/src/index.ts)
+
 <a id="deepseek-aidsh-webhook-github"></a>
 
 ## `@deepseek-ai/dsh-webhook-github`
@@ -3444,6 +3495,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 
 - `@deepseek-ai/dsh-acp-app` — requires `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
 - `@deepseek-ai/dsh-agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
+- `@deepseek-ai/dsh-api-git-controller` — requires `subprocess` · `workspaceRegistry` ([`packages/api/git-controller/src/index.ts`](../packages/api/git-controller/src/index.ts))
 - `@deepseek-ai/dsh-api-remotes` — requires `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
 - `@deepseek-ai/dsh-api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
 - `@deepseek-ai/dsh-authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))

@@ -122,3 +122,74 @@ export function SecretField(props: Pick<FieldProps, 'id' | 'label' | 'hint' | 't
     </div>
   )
 }
+
+/** One choice a {@link SelectField} offers, optionally inside a group. */
+export interface FieldOption {
+  /** Value written when this choice is selected. */
+  value: string
+  /** Visible text. */
+  label: string
+  /** Optional group heading; consecutive options sharing one are grouped. */
+  group?: string
+}
+
+/**
+ * A staged choice field. The options are a live directory, so a stored value
+ * the directory no longer advertises is added back as its own choice rather
+ * than silently re-pointing the control at something the user never chose.
+ * @param props - the field's copy, its staged value, and the choices.
+ * @returns the labelled control.
+ */
+export function SelectField(props: Omit<FieldProps, 'invalid' | 'invalidLabel'> & {
+  /** Choices, in render order. */
+  options: readonly FieldOption[]
+}) {
+  const groups: { name: string | undefined; options: FieldOption[] }[] = []
+  for (const option of props.options) {
+    const last = groups.at(-1)
+    if (last !== undefined && last.name === option.group) last.options.push(option)
+    else groups.push({ name: option.group, options: [option] })
+  }
+  return (
+    <div className={css.field}>
+      <div className={css.head}>
+        <label className={css.label} htmlFor={props.id}>{props.label}</label>
+        {props.overridden
+          ? (
+            <span className={css.badges}>
+              <Tag tone="neutral">{props.overriddenLabel}</Tag>
+              <button
+                type="button"
+                className={css.reset}
+                disabled={props.disabled}
+                onClick={props.onReset}
+              >
+                {props.resetLabel}
+              </button>
+            </span>
+          )
+          : null}
+      </div>
+      <select
+        id={props.id}
+        className={css.input}
+        value={props.text}
+        disabled={props.disabled}
+        onChange={(event) => { props.onEdit(event.target.value) }}
+      >
+        {groups.map((group, index) => group.name === undefined
+          ? group.options.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))
+          : (
+            <optgroup key={`${group.name}-${String(index)}`} label={group.name}>
+              {group.options.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </optgroup>
+          ))}
+      </select>
+      <p className={css.hint}>{props.hint}</p>
+    </div>
+  )
+}

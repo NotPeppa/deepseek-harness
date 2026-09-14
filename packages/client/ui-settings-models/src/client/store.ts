@@ -127,8 +127,25 @@ export function protocolChoices(
   namespace: SettingsNamespaceView | undefined,
   schema: SettingsSchemaOperations,
 ): string[] {
+  return unionChoicesAt(namespace, schema, ['providers', PROBE_ROUTE, 'api'])
+}
+
+/**
+ * The literal values one schema field accepts, read out of the owning
+ * namespace's own schema for the same reason {@link protocolChoices} does: a
+ * hand-listed set of choices drifts from the adapter's `Config`, a read cannot.
+ * @param namespace - the namespace view whose schema declares the field.
+ * @param schema - settings schema operations.
+ * @param path - path to the union field inside the section.
+ * @returns the accepted values, or an empty list when the field is not a union.
+ */
+export function unionChoicesAt(
+  namespace: SettingsNamespaceView | undefined,
+  schema: SettingsSchemaOperations,
+  path: readonly string[],
+): string[] {
   if (namespace === undefined) return []
-  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), ['providers', PROBE_ROUTE, 'api'])
+  const node = schema.nodeAtPath(schema.rehydrate(namespace.schema), [...path])
   const list = (node as { type?: string; list?: readonly { value?: unknown }[] } | undefined)
   if (list?.type !== 'union' || list.list === undefined) return []
   return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')

@@ -1548,3 +1548,164 @@ describe('API key field', () => {
     expect(screen.queryByText(en.customTitle)).toBeNull()
   })
 })
+
+describe('DeepSeek thinking policy', () => {
+  /** The `llm-deepseek` section as the host serializes the fields this card edits. */
+  const DeepSeekConfig = Schema.object({
+    apiKeyEnv: Schema.string().role('credential-ref'),
+    baseURL: Schema.string(),
+    thinking: Schema.union(['enabled', 'disabled']),
+    reasoningEffort: Schema.union(['off', 'low', 'high', 'max']),
+    models: Schema.array(Schema.object({ id: Schema.string().required() })).default([]),
+  })
+
+  function deepseekNamespace(user: Record<string, JsonValue> = {}): SettingsNamespaceView {
+    return {
+      ns: 'llm-deepseek',
+      schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
+      value: { apiKeyEnv: 'DEEPSEEK_API_KEY', models: [], ...user },
+      base: { models: [] },
+      user,
+      applies: 'live',
+      secrets: [],
+      revision: 4,
+    }
+  }
+
+  async function openDeepSeek(user: Record<string, JsonValue> = {}) {
+    const { face, mutate } = scriptedFace()
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="deepseek-official"
+      displayName="DeepSeek"
+      namespace={deepseekNamespace(user)}
+      schema={settingsSchema}
+      settingsPath={[]}
+      operations={operationsWith(face)}
+      t={t}
+      readOnly={false}
+      onClose={vi.fn()}
+    />)
+    const summary = document.querySelector('summary')
+    if (summary === null) throw new Error('no customized fold')
+    fireEvent.click(summary)
+    return { mutate }
+  }
+
+  it('offers the modes and efforts the adapter schema declares, not a hand-listed set', async () => {
+    await openDeepSeek()
+    const thinking = screen.getByLabelText<HTMLSelectElement>(en.thinking)
+    const effort = screen.getByLabelText<HTMLSelectElement>(en.reasoningEffort)
+
+    expect([...thinking.options].map(option => option.value)).toEqual(['', 'enabled', 'disabled'])
+    expect([...effort.options].map(option => option.value)).toEqual(['', 'off', 'low', 'high', 'max'])
+    // Neither is configured, so both read as the provider's own default.
+    expect(thinking.value).toBe('')
+    expect(effort.value).toBe('')
+  })
+
+  it('stores the chosen policy and effort in the section', async () => {
+    const { mutate } = await openDeepSeek()
+
+    fireEvent.change(screen.getByLabelText(en.thinking), { target: { value: 'enabled' } })
+    fireEvent.change(screen.getByLabelText(en.reasoningEffort), { target: { value: 'low' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate)).toMatchObject({
+      ns: 'llm-deepseek',
+      expectedRevision: 4,
+      ops: [
+        { op: 'set', path: ['thinking'], value: 'enabled' },
+        { op: 'set', path: ['reasoningEffort'], value: 'low' },
+      ],
+    })
+  })
+
+  it('clears a stored effort when thinking is switched off, which the adapter would reject', async () => {
+    const { mutate } = await openDeepSeek({ thinking: 'enabled', reasoningEffort: 'max' })
+    const effort = screen.getByLabelText<HTMLSelectElement>(en.reasoningEffort)
+    expect(effort.value).toBe('max')
+
+    fireEvent.change(screen.getByLabelText(en.thinking), { target: { value: 'disabled' } })
+
+    // The control says why it is inert rather than leaving a value that cannot be saved.
+    expect(effort.disabled).toBe(true)
+    expect(effort.value).toBe('')
+    expect([...effort.options].map(option => option.textContent)).toEqual([en.reasoningEffortOffOnly])
+
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate)).toMatchObject({
+      ops: [
+        { op: 'set', path: ['thinking'], value: 'disabled' },
+        { op: 'unset', path: ['reasoningEffort'] },
+      ],
+    })
+  })
+})
+
+describe('custom provider reasoning levels', () => {
+  /** Open the pi-ai editor with one model row's advanced fold expanded. */
+  async function openRow(model: Record<string, JsonValue> = { id: 'acme-think' }) {
+    const { mutate } = await mountSection({
+      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [model] } },
+    })
+    openEditor('openai')
+    expandModel(1)
+    return { mutate }
+  }
+
+  it('declares the levels a model offers, with the wire value each one sends', async () => {
+    const { mutate } = await openRow()
+
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'custom' } })
+    // The seeded map is one the adapter accepts: off plus one thinking level.
+    fireEvent.change(screen.getByLabelText(`${en.reasoningWire} high 1`), { target: { value: 'ultra' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate)).toMatchObject({
+      ops: [{
+        op: 'set',
+        path: ['providers', 'openai', 'models'],
+        value: [{ id: 'acme-think', reasoningEfforts: { off: null, high: 'ultra' } }],
+      }],
+    })
+  })
+
+  it('keeps the adapter rules the form could keep, instead of failing the save', async () => {
+    const { mutate } = await openRow()
+    fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'custom' } })
+
+    // A blank spelling on a thinking level is exactly what the adapter refuses.
+    expect(screen.getByText(`${en.model} 1: ${en.reasoningNeedsWire}`)).toBeTruthy()
+    expect(buttonNamed(en.apply).disabled).toBe(true)
+
+    // So is a map that offers nothing but off.
+    fireEvent.click(screen.getByLabelText('high 1'))
+    expect(screen.getByText(`${en.model} 1: ${en.reasoningNeedsLevel}`)).toBeTruthy()
+    expect(buttonNamed(en.apply).disabled).toBe(true)
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('stores a non-reasoning model as false, and reads an existing declaration back', async () => {
+    const { mutate } = await openRow({ id: 'acme-think', reasoningEfforts: { off: null, max: 'ultra' } })
+
+    const mode = screen.getByLabelText<HTMLSelectElement>(`${en.modelReasoning} 1`)
+    expect(mode.value).toBe('custom')
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningWire} max 1`).value).toBe('ultra')
+
+    fireEvent.change(mode, { target: { value: 'none' } })
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    expect(firstMutate(mutate)).toMatchObject({
+      ops: [{
+        op: 'set',
+        path: ['providers', 'openai', 'models'],
+        value: [{ id: 'acme-think', reasoningEfforts: false }],
+      }],
+    })
+  })
+})

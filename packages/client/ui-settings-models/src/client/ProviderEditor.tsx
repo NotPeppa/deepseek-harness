@@ -33,7 +33,8 @@ import {
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
-import { deriveKeyRef, protocolChoices } from './store.ts'
+import { validateReasoningEfforts } from './ReasoningEffortsField.tsx'
+import { deriveKeyRef, protocolChoices, unionChoicesAt } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import type { en } from './locales.ts'
@@ -184,6 +185,19 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     [layout, namespace, schema],
   )
 
+  // Thinking policy and its default effort belong to the DeepSeek connection,
+  // not to any one model row, so they sit beside the endpoint rather than in
+  // the catalog editor. Both choice lists are schema reads for the same reason
+  // the protocol list is.
+  const thinkingModes = useMemo(
+    () => layout === 'deepseek' ? unionChoicesAt(namespace, schema, ['thinking']) : [],
+    [layout, namespace, schema],
+  )
+  const effortChoices = useMemo(
+    () => layout === 'deepseek' ? unionChoicesAt(namespace, schema, ['reasoningEffort']) : [],
+    [layout, namespace, schema],
+  )
+
   useEffect(() => {
     let stale = false
     setKeyState(undefined)
@@ -213,7 +227,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
 
   // The model list is validated by the same per-row checker for both families,
   // so a bad row is named by its position rather than by a blanket message.
-  const modelFailure = validateDeepSeekModels(schema.getPath(draft, ['models']))
+  const drafted = schema.getPath(draft, ['models'])
+  // Two per-row checks over the same rows: the shared shape check, then the
+  // reasoning declaration, which only a custom provider's rows can carry.
+  const modelFailure = validateDeepSeekModels(drafted) ?? validateReasoningEfforts(drafted)
   const keyFailure = apiKeyFailure(keyDraft)
   // What a probe or a write must carry: the typed key with paste whitespace
   // removed. A blank field yields an empty string, which both call sites read
@@ -446,6 +463,60 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     {protocols.map(choice => <option key={choice} value={choice}>{choice}</option>)}
                   </select>
                 </div>
+              )
+              : null}
+            {family === 'deepseek'
+              ? (
+                <>
+                  <div className={styles['field']}>
+                    <span className={styles['fieldLabel']}>{t('thinking')}</span>
+                    <select
+                      className={`${styles['input']} ${styles['selectInput']}`}
+                      value={stringAt(draft, 'thinking') ?? ''}
+                      aria-label={t('thinking')}
+                      disabled={disabled}
+                      onChange={(event) => {
+                        const next = event.target.value === '' ? undefined : event.target.value
+                        setField('thinking', next)
+                        // The adapter refuses a disabled policy that still
+                        // names a thinking effort, so the two move together
+                        // rather than letting a save fail on a rule the form
+                        // could have kept.
+                        if (next === 'disabled') setField('reasoningEffort', undefined)
+                      }}
+                    >
+                      <option value="">{t('thinkingInherited')}</option>
+                      {thinkingModes.map(mode => (
+                        <option key={mode} value={mode}>
+                          {mode === 'disabled' ? t('thinkingDisabled') : t('thinkingEnabled')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles['field']}>
+                    <span className={styles['fieldLabel']}>{t('reasoningEffort')}</span>
+                    <select
+                      className={`${styles['input']} ${styles['selectInput']}`}
+                      value={stringAt(draft, 'reasoningEffort') ?? ''}
+                      aria-label={t('reasoningEffort')}
+                      disabled={disabled || stringAt(draft, 'thinking') === 'disabled'}
+                      onChange={(event) => {
+                        setField('reasoningEffort', event.target.value === '' ? undefined : event.target.value)
+                      }}
+                    >
+                      <option value="">
+                        {stringAt(draft, 'thinking') === 'disabled'
+                          ? t('reasoningEffortOffOnly')
+                          : t('reasoningEffortInherited')}
+                      </option>
+                      {stringAt(draft, 'thinking') === 'disabled'
+                        ? null
+                        : effortChoices.map(effort => (
+                          <option key={effort} value={effort}>{effort}</option>
+                        ))}
+                    </select>
+                  </div>
+                </>
               )
               : null}
             {/* Both families edit the same rows through the same contract; only

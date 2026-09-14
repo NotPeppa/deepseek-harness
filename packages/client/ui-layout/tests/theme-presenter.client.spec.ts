@@ -2,15 +2,25 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
-import { DARK_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
+import {
+  BACKGROUND_BLUR_VARIABLE, BACKGROUND_IMAGE_VARIABLE, BACKGROUND_OPACITY_VARIABLE,
+  BACKGROUND_PANEL_ALPHA_VARIABLE, BACKGROUND_SURFACE_VARIABLE,
+  DARK_ATTRIBUTE, ThemePresenter,
+} from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
 
 const LIGHT_THEME_COLOR = 'rgb(255, 255, 255)'
 const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
 
-function snapshot(colorScheme: 'light' | 'dark', tokens: Record<string, string> = {}, fontSize = 14): ThemeSnapshot {
+function snapshot(
+  colorScheme: 'light' | 'dark', tokens: Record<string, string> = {}, fontSize = 14,
+  background: Partial<Pick<ThemeSnapshot, 'backgroundImage' | 'backgroundBlur' | 'backgroundOpacity'>> = {},
+): ThemeSnapshot {
   // The presenter must key off colorScheme, not the id — keep them distinct.
   const active = { id: `${colorScheme}-test`, colorScheme, tokens }
-  return { preference: colorScheme, fontSize, active, themes: [active], revision: 1 }
+  return {
+    preference: colorScheme, fontSize, active, themes: [active], revision: 1,
+    backgroundImage: '', backgroundBlur: 0, backgroundOpacity: 30, ...background,
+  }
 }
 
 function clearThemePresentation(): void {
@@ -78,6 +88,28 @@ describe('ThemePresenter', () => {
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('14px')
     presenter.apply(snapshot('light', {}, 17))
     expect(document.body.style.getPropertyValue('--dsh-content-font-size')).toBe('17px')
+  })
+
+  it('publishes the custom background axis, escapes the URL, and clears it when the image is empty', () => {
+    const presenter = new ThemePresenter()
+    presenter.apply(snapshot('light', {}, 14, { backgroundImage: 'https://x/a.png', backgroundBlur: 8, backgroundOpacity: 40 }))
+    expect(document.body.style.getPropertyValue(BACKGROUND_IMAGE_VARIABLE)).toBe('url("https://x/a.png")')
+    expect(document.body.style.getPropertyValue(BACKGROUND_BLUR_VARIABLE)).toBe('8px')
+    expect(document.body.style.getPropertyValue(BACKGROUND_OPACITY_VARIABLE)).toBe('0.4')
+    // Permeable surfaces are released only while a wallpaper is showing.
+    expect(document.body.style.getPropertyValue(BACKGROUND_SURFACE_VARIABLE)).toBe('transparent')
+    expect(document.body.style.getPropertyValue(BACKGROUND_PANEL_ALPHA_VARIABLE)).toBe('55%')
+    // A URL that tries to break out of url("…") is neutralised.
+    presenter.apply(snapshot('light', {}, 14, { backgroundImage: 'a") ;evil(', backgroundBlur: 0, backgroundOpacity: 30 }))
+    expect(document.body.style.getPropertyValue(BACKGROUND_IMAGE_VARIABLE)).toBe('url("a\\"\\) ;evil\\(")')
+    // Empty image clears all three axes.
+    presenter.apply(snapshot('light'))
+    expect(document.body.style.getPropertyValue(BACKGROUND_IMAGE_VARIABLE)).toBe('')
+    expect(document.body.style.getPropertyValue(BACKGROUND_BLUR_VARIABLE)).toBe('')
+    expect(document.body.style.getPropertyValue(BACKGROUND_OPACITY_VARIABLE)).toBe('')
+    // Surfaces go back to their own opaque fills.
+    expect(document.body.style.getPropertyValue(BACKGROUND_SURFACE_VARIABLE)).toBe('')
+    expect(document.body.style.getPropertyValue(BACKGROUND_PANEL_ALPHA_VARIABLE)).toBe('')
   })
 
   it('dispose removes color-scheme, the attribute, the font-size axis, and every applied variable, sparing foreign inline styles', () => {

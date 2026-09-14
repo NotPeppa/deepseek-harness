@@ -27,6 +27,8 @@ import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
 import { WebSearchCard } from './WebSearchCard.tsx'
+import { TinyFishCard } from './TinyFishCard.tsx'
+import { PlanModelSwitchCard } from './PlanModelSwitchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
 import { ConfigurablePluginsTabController } from './tab-store.ts'
@@ -34,6 +36,10 @@ import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
 import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-controller.ts'
+import { TINYFISH_NS, TinyFishCardController, WEB_NS } from './tinyfish-card-controller.ts'
+import {
+  PLAN_MODEL_SWITCH_NS, PlanModelSwitchCardController,
+} from './plan-model-switch-card-controller.ts'
 import { en, zh } from './locales.ts'
 
 export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from './PluginsSettingsSection.tsx'
@@ -48,6 +54,10 @@ export type {
 export type { AgentLoopCardFace, AgentLoopCardState } from './agent-loop-card-controller.ts'
 export type { BashCardFace, BashCardState } from './bash-card-controller.ts'
 export type { WebSearchCardFace, WebSearchCardState } from './web-search-card-controller.ts'
+export type { TinyFishCardFace, TinyFishCardState } from './tinyfish-card-controller.ts'
+export type {
+  PlanModelSwitchCardFace, PlanModelSwitchCardState,
+} from './plan-model-switch-card-controller.ts'
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'settings.plugins'
@@ -69,6 +79,14 @@ export function apply(ctx: ClientContext): void {
   const agentLoop = new AgentLoopCardController(ctx.settingsScope.bind({ namespace: AGENT_LOOP_NS }))
   const webSearch = new WebSearchCardController(
     ctx.settingsScope.bind({ namespace: WEB_SEARCH_NS }), ctx)
+  // The TinyFish card also writes the web seam's own section: which provider
+  // serves web_search is the seam's choice, not this provider's.
+  const tinyFish = new TinyFishCardController(
+    ctx.settingsScope.bind({ namespace: TINYFISH_NS }),
+    ctx.settingsScope.bind({ namespace: WEB_NS }),
+    ctx)
+  const planModelSwitch = new PlanModelSwitchCardController(
+    ctx.settingsScope.bind({ namespace: PLAN_MODEL_SWITCH_NS }), ctx)
   const subagentModelSelection = new SubagentModelSelectionCardController(
     ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
     ctx,
@@ -78,11 +96,17 @@ export function apply(ctx: ClientContext): void {
   // scope publishes nothing when one is written. This is the only signal that
   // a key written on another surface reached the Host.
   ctx.effect(
-    () => ctx.remote.$on('credentials/reference-updated', (ref) => { webSearch.refreshCredential(ref) }),
+    () => ctx.remote.$on('credentials/reference-updated', (ref) => {
+      webSearch.refreshCredential(ref)
+      tinyFish.refreshCredential(ref)
+    }),
     'ui-settings-plugins: credential invalidations',
   )
   ctx.effect(
-    () => ctx.remote.$on('llm/adapters-updated', () => { subagentModelSelection.refreshCatalog() }),
+    () => ctx.remote.$on('llm/adapters-updated', () => {
+      subagentModelSelection.refreshCatalog()
+      planModelSwitch.refreshCatalog()
+    }),
     'ui-settings-plugins: subagent adapter invalidations',
   )
   ctx.effect(
@@ -90,10 +114,14 @@ export function apply(ctx: ClientContext): void {
     'ui-settings-plugins: subagent settings invalidations',
   )
   ctx.effect(
-    () => ctx.on('connection/reset', () => { subagentModelSelection.resetConnection() }),
+    () => ctx.on('connection/reset', () => {
+      subagentModelSelection.resetConnection()
+      planModelSwitch.resetConnection()
+    }),
     'ui-settings-plugins: subagent connection generation',
   )
   ctx.effect(() => () => { subagentModelSelection.dispose() }, 'ui-settings-plugins: subagent preference')
+  ctx.effect(() => () => { planModelSwitch.dispose() }, 'ui-settings-plugins: plan phase directory')
 
   // The shared SettingsScope mirror updates after document commits and reconnects.
   const configurable = new ConfigurablePluginsTabController(
@@ -161,7 +189,10 @@ export function apply(ctx: ClientContext): void {
     label: () => t('configurableTab'),
     locale: NS,
     inject: () => configurable.inject(),
-    children: { 'settings.plugin.item': { kind: 'keyed', scope: 'root' } },
+    children: {
+      'settings.plugin.item': { kind: 'keyed', scope: 'root' },
+      'web-ui.plugin.item': { kind: 'list', scope: 'root' },
+    },
   }, ConfigurablePluginsTab))
 
   ctx.slots.inject('settings.plugin.item', function* () {
@@ -189,5 +220,17 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => webSearch.inject(),
     }, WebSearchCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: TINYFISH_NS,
+      locale: NS,
+      inject: () => tinyFish.inject(),
+    }, TinyFishCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: PLAN_MODEL_SWITCH_NS,
+      locale: NS,
+      inject: () => planModelSwitch.inject(),
+    }, PlanModelSwitchCard)
   })
 }

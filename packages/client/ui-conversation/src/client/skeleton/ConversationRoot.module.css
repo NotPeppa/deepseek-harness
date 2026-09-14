@@ -4,7 +4,9 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  background: var(--dsw-alias-bg-base);
+  /* Transparent while a custom background is active so the frame's wallpaper
+     shows through this column; the fallback is the normal opaque fill. */
+  background: var(--dsh-bg-surface, var(--dsw-alias-bg-base));
 
   /* Shared width axis for the whole column: one content width W
      (--dsh-chat-content-width) for the transcript, the dock cards

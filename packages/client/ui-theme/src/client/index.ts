@@ -20,10 +20,15 @@ import type { AppearanceRowInjected } from './AppearanceRow.tsx'
 import { AppearanceRow } from './AppearanceRow.tsx'
 import type { FontSizeRowInjected } from './FontSizeRow.tsx'
 import { FontSizeRow } from './FontSizeRow.tsx'
-import { createAppearanceRowStore, createFontSizeRowStore } from './settings-store.ts'
+import type { BackgroundRowInjected } from './BackgroundRow.tsx'
+import { BackgroundRow } from './BackgroundRow.tsx'
+import { createAppearanceRowStore, createBackgroundRowStore, createFontSizeRowStore } from './settings-store.ts'
 import { installThemeStyles } from './styles.ts'
 import { en, zh, type ThemeKey } from './locales.ts'
 import {
+  BACKGROUND_BLUR_FIELD, BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN,
+  BACKGROUND_IMAGE_FIELD, BACKGROUND_OPACITY_FIELD, BACKGROUND_OPACITY_MAX, BACKGROUND_OPACITY_MIN,
+  DEFAULT_BACKGROUND_BLUR, DEFAULT_BACKGROUND_IMAGE, DEFAULT_BACKGROUND_OPACITY,
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
   isThemePreference, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
   type ThemePreference, type ThemeSettings,
@@ -31,7 +36,8 @@ import {
 
 export type { AppearanceRowComponentProps, AppearanceRowInjected } from './AppearanceRow.tsx'
 export type { FontSizeRowComponentProps, FontSizeRowInjected } from './FontSizeRow.tsx'
-export type { AppearanceRowState, FontSizeRowState } from './settings-store.ts'
+export type { BackgroundRowComponentProps, BackgroundRowInjected } from './BackgroundRow.tsx'
+export type { AppearanceRowState, FontSizeRowState, BackgroundRowState } from './settings-store.ts'
 export type { ThemeKey } from './locales.ts'
 export type { ThemePreference, ThemeSettings } from '../theme-settings.ts'
 
@@ -82,6 +88,12 @@ export interface ThemeSnapshot {
   preference: ThemePreference
   /** Conversation content font size in px (integer within FONT_SIZE_MIN..FONT_SIZE_MAX). */
   fontSize: number
+  /** Custom background image URL; empty string means no custom background. */
+  backgroundImage: string
+  /** Custom background blur radius in px. */
+  backgroundBlur: number
+  /** Custom background opacity in percent. */
+  backgroundOpacity: number
   /**
    * The resolved active theme (`system` resolved via prefers-color-scheme)
    * with override layers folded into its tokens (seq order, later layers win
@@ -161,6 +173,9 @@ export class ThemeRuntime {
   private themes: ThemeDefinition[] = [...BUILTIN_THEMES]
   private preference: ThemePreference
   private fontSize: number = bootstrapFontSize()
+  private backgroundImage: string = DEFAULT_BACKGROUND_IMAGE
+  private backgroundBlur: number = DEFAULT_BACKGROUND_BLUR
+  private backgroundOpacity: number = DEFAULT_BACKGROUND_OPACITY
   private revision = 0
   private snapshot: ThemeSnapshot
   private readonly media: MediaQueryList | undefined
@@ -254,13 +269,60 @@ export class ThemeRuntime {
     this.publish()
   }
 
+  /**
+   * Set the custom background image URL — the only image write entry. An empty
+   * string disables the custom background. Written through the settings scope
+   * and emits `theme/change`.
+   * @param url - image URL, or empty to disable.
+   */
+  setBackgroundImage(url: string): void {
+    if (this.backgroundImage === url) return
+    this.backgroundImage = url
+    void this.host.set(BACKGROUND_IMAGE_FIELD, url)
+    this.publish()
+  }
+
+  /**
+   * Set the custom background blur radius — the only blur write entry.
+   * @param px - integer px within BACKGROUND_BLUR_MIN..BACKGROUND_BLUR_MAX; out-of-range or fractional values throw.
+   */
+  setBackgroundBlur(px: number): void {
+    if (!Number.isInteger(px) || px < BACKGROUND_BLUR_MIN || px > BACKGROUND_BLUR_MAX) {
+      throw new Error(`background blur ${px} is outside ${BACKGROUND_BLUR_MIN}..${BACKGROUND_BLUR_MAX}`)
+    }
+    if (this.backgroundBlur === px) return
+    this.backgroundBlur = px
+    void this.host.set(BACKGROUND_BLUR_FIELD, px)
+    this.publish()
+  }
+
+  /**
+   * Set the custom background opacity — the only opacity write entry.
+   * @param percent - integer within BACKGROUND_OPACITY_MIN..BACKGROUND_OPACITY_MAX; out-of-range or fractional values throw.
+   */
+  setBackgroundOpacity(percent: number): void {
+    if (!Number.isInteger(percent) || percent < BACKGROUND_OPACITY_MIN || percent > BACKGROUND_OPACITY_MAX) {
+      throw new Error(`background opacity ${percent} is outside ${BACKGROUND_OPACITY_MIN}..${BACKGROUND_OPACITY_MAX}`)
+    }
+    if (this.backgroundOpacity === percent) return
+    this.backgroundOpacity = percent
+    void this.host.set(BACKGROUND_OPACITY_FIELD, percent)
+    this.publish()
+  }
+
   /** Adopt the scope's accepted durable preference without writing it back. */
   private adopt(): void {
     const section = this.host.getSnapshot().value
     if (section === undefined) return
-    if (this.preference === section.preference && this.fontSize === section.fontSize) return
+    if (this.preference === section.preference && this.fontSize === section.fontSize
+      && this.backgroundImage === section.backgroundImage
+      && this.backgroundBlur === section.backgroundBlur
+      && this.backgroundOpacity === section.backgroundOpacity) return
     this.preference = section.preference
     this.fontSize = section.fontSize
+    this.backgroundImage = section.backgroundImage
+    this.backgroundBlur = section.backgroundBlur
+    this.backgroundOpacity = section.backgroundOpacity
     this.publish()
   }
 
@@ -328,6 +390,9 @@ export class ThemeRuntime {
     return Object.freeze({
       preference: this.preference,
       fontSize: this.fontSize,
+      backgroundImage: this.backgroundImage,
+      backgroundBlur: this.backgroundBlur,
+      backgroundOpacity: this.backgroundOpacity,
       active: this.composeActive(active),
       themes: Object.freeze([...this.themes]),
       revision: this.revision,
@@ -437,9 +502,14 @@ export function apply(ctx: ClientContext): void {
   let bound: BoundActions<typeof store> | undefined
   const fontSizeStore = createFontSizeRowStore()
   let fontSizeBound: BoundActions<typeof fontSizeStore> | undefined
+  const backgroundStore = createBackgroundRowStore()
+  let backgroundBound: BoundActions<typeof backgroundStore> | undefined
   const sync = (snapshot: ThemeSnapshot): void => {
     bound?.sync(snapshot.preference, snapshot.revision)
     fontSizeBound?.sync(snapshot.fontSize, snapshot.revision)
+    backgroundBound?.sync(
+      snapshot.backgroundImage, snapshot.backgroundBlur, snapshot.backgroundOpacity, snapshot.revision,
+    )
   }
   ctx.on('theme/change', sync)
   const injected = (actions: BoundActions<typeof store>): AppearanceRowInjected => {
@@ -475,4 +545,22 @@ export function apply(ctx: ClientContext): void {
     locale: SETTINGS_NS,
     inject: fontSizeInjected,
   }, FontSizeRow))
+
+  const backgroundInjected = (actions: BoundActions<typeof backgroundStore>): BackgroundRowInjected => {
+    backgroundBound = actions
+    sync(theme.getTheme())
+    return {
+      setBackgroundImage: (url) => { theme.setBackgroundImage(url) },
+      setBackgroundBlur: (px) => { theme.setBackgroundBlur(px) },
+      setBackgroundOpacity: (percent) => { theme.setBackgroundOpacity(percent) },
+    }
+  }
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'background',
+    order: 12,
+    store: backgroundStore,
+    locale: SETTINGS_NS,
+    inject: backgroundInjected,
+  }, BackgroundRow))
 }

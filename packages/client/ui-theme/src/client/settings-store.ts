@@ -4,7 +4,10 @@
  * row components read via props.useStore.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
-import { DEFAULT_FONT_SIZE, type ThemePreference } from '../theme-settings.ts'
+import {
+  DEFAULT_BACKGROUND_BLUR, DEFAULT_BACKGROUND_IMAGE, DEFAULT_BACKGROUND_OPACITY,
+  DEFAULT_FONT_SIZE, type ThemePreference,
+} from '../theme-settings.ts'
 
 /** Store state mirrored from the theme snapshot. */
 export interface AppearanceRowState {
@@ -60,6 +63,44 @@ export function createFontSizeRowStore(): EngineStoreHandle<FontSizeRowState, Fo
       sync: (d, fontSize: number, revision: number) => {
         if (revision <= d.revision) return
         d.fontSize = fontSize
+        d.revision = revision
+      },
+    },
+  })
+}
+
+/** Store state mirrored from the theme snapshot's custom background. */
+export interface BackgroundRowState {
+  /** Custom background image URL (empty disables the feature). */
+  image: string
+  /** Background blur radius in px. */
+  blur: number
+  /** Background opacity in percent. */
+  opacity: number
+  /** Service revision; -1 until first sync so revision 0 lands as a change. */
+  revision: number
+}
+
+/** Declared action shape giving the exported factory a stable return type. */
+type BackgroundRowActions = {
+  sync: (draft: BackgroundRowState, image: string, blur: number, opacity: number, revision: number) => void
+}
+
+/**
+ * Declares the background row state and write surface.
+ * @returns the store handle.
+ */
+export function createBackgroundRowStore(): EngineStoreHandle<BackgroundRowState, BackgroundRowActions> {
+  return defineStore({
+    init: (): BackgroundRowState => ({
+      image: DEFAULT_BACKGROUND_IMAGE, blur: DEFAULT_BACKGROUND_BLUR, opacity: DEFAULT_BACKGROUND_OPACITY, revision: -1,
+    }),
+    actions: {
+      sync: (d, image: string, blur: number, opacity: number, revision: number) => {
+        if (revision <= d.revision) return
+        d.image = image
+        d.blur = blur
+        d.opacity = opacity
         d.revision = revision
       },
     },

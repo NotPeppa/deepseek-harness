@@ -31,7 +31,8 @@
   /* The same ground as the conversation: this is a column of the page, not a
      raised surface. The edge is the weight of the kit's split dividers inside
      (ui-dockkit `.divider`), so the panel's outline and its inner rules match. */
-  background: var(--dsw-alias-bg-base);
+  /* Translucent while a custom background shows through; 100% (unchanged) otherwise. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) var(--dsh-bg-panel-alpha, 100%), transparent);
   border-left: 0.5px solid var(--dsw-alias-border-l4);
   transform: translateX(100%);
   visibility: hidden;

@@ -11,6 +11,18 @@ export type PluginsSettingsLocaleKey =
   | 'webSearchTitle' | 'webSearchDescription'
   | 'webSearchApiKey' | 'webSearchApiKeyHint' | 'webSearchApiKeySet' | 'webSearchApiKeyUnset'
   | 'webSearchBaseUrl' | 'webSearchBaseUrlHint' | 'webSearchMaxUses' | 'webSearchMaxUsesHint'
+  | 'tinyfishTitle' | 'tinyfishDescription'
+  | 'tinyfishApiKey' | 'tinyfishApiKeyHint' | 'tinyfishApiKeySet' | 'tinyfishApiKeyUnset'
+  | 'tinyfishUseForSearch' | 'tinyfishUseForSearchHint'
+  | 'tinyfishBaseUrl' | 'tinyfishBaseUrlHint'
+  | 'planPhaseTitle' | 'planPhaseDescription'
+  | 'planPhasePlanningGroup' | 'planPhaseExecutingGroup'
+  | 'planPhaseModel' | 'planPhaseModelHint'
+  | 'planPhaseReasoningEffort' | 'planPhaseReasoningEffortHint'
+  | 'planPhaseFold' | 'planPhaseFoldHint'
+  | 'planPhaseKeepModel' | 'planPhaseDefaultEffort' | 'planPhaseEffortUnavailable'
+  | 'planPhaseCatalogLoading' | 'planPhaseCatalogFailed' | 'planPhaseCatalogRetry'
+  | 'planPhaseCatalogPartial'
   | 'subagentModelSelectionTitle' | 'subagentModelSelectionDescription'
   | 'subagentModelSelectionToggle' | 'subagentModelSelectionChoose' | 'subagentModelSelectionAllowed'
   | 'subagentModelSelectionLoading' | 'subagentModelSelectionLoadFailed' | 'subagentModelSelectionRetry'
@@ -57,6 +69,33 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   webSearchBaseUrlHint: 'Leave blank to use the provider default.',
   webSearchMaxUses: 'Max searches per request',
   webSearchMaxUsesHint: 'How many times one request may search before it must answer.',
+  tinyfishTitle: 'TinyFish web search',
+  tinyfishDescription: 'Search the web through TinyFish. Search is free on every TinyFish account.',
+  tinyfishApiKey: 'API key',
+  tinyfishApiKeyHint: 'Create one at agent.tinyfish.ai/api-keys. Stored outside the settings file; leave blank to keep the current key.',
+  tinyfishApiKeySet: 'A key is configured.',
+  tinyfishApiKeyUnset: 'No key is configured; TinyFish search is unavailable until one is.',
+  tinyfishUseForSearch: 'Use TinyFish for web search',
+  tinyfishUseForSearchHint: 'Points the web_search tool at TinyFish. Turning it off returns to the provider this deployment ships.',
+  tinyfishBaseUrl: 'Endpoint',
+  tinyfishBaseUrlHint: 'Leave blank to use the provider default.',
+  planPhaseTitle: 'Plan and execution models',
+  planPhaseDescription: 'Run planning and execution on different models. Only sessions on a preset that composes phase routing are affected; leave a phase blank to keep the session’s own model.',
+  planPhasePlanningGroup: 'While planning',
+  planPhaseExecutingGroup: 'After the plan is approved',
+  planPhaseModel: 'Model',
+  planPhaseModelHint: 'Chosen from the models this deployment has configured.',
+  planPhaseReasoningEffort: 'Reasoning effort',
+  planPhaseReasoningEffortHint: 'Optional; blank uses the model’s own default.',
+  planPhaseFold: 'Fold the planning history',
+  planPhaseFoldHint: 'On approval, replace the exploration behind the plan with one summary, so the execution phase carries the plan rather than the whole transcript. The approved plan is never folded.',
+  planPhaseKeepModel: 'Keep the session’s model',
+  planPhaseDefaultEffort: 'Model default',
+  planPhaseEffortUnavailable: 'Available once this phase runs on a model that offers reasoning effort.',
+  planPhaseCatalogLoading: 'Loading models…',
+  planPhaseCatalogFailed: 'Models could not be loaded.',
+  planPhaseCatalogRetry: 'Retry',
+  planPhaseCatalogPartial: 'Some model providers could not be loaded; saved routes remain selectable.',
   subagentModelSelectionTitle: 'Subagent',
   subagentModelSelectionDescription: 'Control which models agents may choose for subagents.',
   subagentModelSelectionToggle: 'Allow agents to choose models for subagents',
@@ -113,6 +152,33 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   webSearchBaseUrlHint: '留空则使用提供方默认地址。',
   webSearchMaxUses: '单次请求最多搜索次数',
   webSearchMaxUsesHint: '一次请求在必须作答前最多可以搜索多少次。',
+  tinyfishTitle: 'TinyFish 网页搜索',
+  tinyfishDescription: '通过 TinyFish 搜索网页。TinyFish 账号的搜索额度免费。',
+  tinyfishApiKey: 'API Key',
+  tinyfishApiKeyHint: '在 agent.tinyfish.ai/api-keys 创建。不写入设置文件；留空表示保持当前密钥。',
+  tinyfishApiKeySet: '已配置密钥。',
+  tinyfishApiKeyUnset: '未配置密钥；配置之前 TinyFish 搜索不可用。',
+  tinyfishUseForSearch: '用 TinyFish 进行网页搜索',
+  tinyfishUseForSearchHint: '把 web_search 工具指向 TinyFish。关闭后回到本部署自带的搜索提供方。',
+  tinyfishBaseUrl: '接口地址',
+  tinyfishBaseUrlHint: '留空则使用提供方默认地址。',
+  planPhaseTitle: '规划与执行模型',
+  planPhaseDescription: '让规划阶段与执行阶段各用一个模型。仅对组合了阶段路由的预设生效；某一阶段留空则保持会话自身的模型。',
+  planPhasePlanningGroup: '规划阶段',
+  planPhaseExecutingGroup: '计划通过之后',
+  planPhaseModel: '模型',
+  planPhaseModelHint: '从本部署已配置的模型中选择。',
+  planPhaseReasoningEffort: '推理强度',
+  planPhaseReasoningEffortHint: '可选；留空则使用该模型自身的默认值。',
+  planPhaseFold: '折叠规划过程',
+  planPhaseFoldHint: '计划通过时，把计划背后的探索过程替换成一段摘要，让执行阶段携带的是计划而不是整份记录。通过的计划本身永远不会被折叠。',
+  planPhaseKeepModel: '不切换，沿用会话的模型',
+  planPhaseDefaultEffort: '模型默认',
+  planPhaseEffortUnavailable: '该阶段选中支持推理强度的模型后可用。',
+  planPhaseCatalogLoading: '正在加载模型…',
+  planPhaseCatalogFailed: '无法加载模型。',
+  planPhaseCatalogRetry: '重试',
+  planPhaseCatalogPartial: '部分模型提供方加载失败；已保存的路由仍可选择。',
   subagentModelSelectionTitle: 'Subagent',
   subagentModelSelectionDescription: '控制 Agent 为 Subagent 选择模型的权限。',
   subagentModelSelectionToggle: '允许 Agent 为 Subagent 选择模型',

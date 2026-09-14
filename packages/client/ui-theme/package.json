@@ -70,6 +70,7 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
+    "@deepseek-ai/dsh-home-paths": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   }
 }
