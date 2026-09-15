@@ -103,6 +103,35 @@ describe('sessions.fork', () => {
     await ctx.fiber.dispose()
   })
 
+  it('leaves a queued prompt behind when the fork is anchored at an earlier turn', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-source', 2)
+    // A prompt the inbox accepted after turn 2 closed: its insert is logged
+    // between `turn/end` and the `turn/start` of the turn that claims it, which
+    // is exactly the gap an anchored cut must not reach into.
+    source.append('agent/inbox/spliced', {
+      target: 'next-turn',
+      start: 0,
+      inserted: [createUserMessage({
+        content: [{ type: 'text', text: 'queued after the anchor' }],
+        source: { kind: 'user' },
+      })],
+    })
+    source.append('turn/start', { turn: 3 })
+
+    const response = await remote(ctx).fork(request({ sessionId: source.id, atSeq: 4 }))
+
+    expect(response.ok ? null : response.error).toBeNull()
+    if (!response.ok) return
+    const types = ctx.sessions.get(response.value.sessionId)?.snapshotEvents().map(event => event.type)
+    expect(types).toEqual([
+      'turn/start', 'user/message', 'turn/end',
+      'turn/start', 'user/message', 'turn/end',
+      'session/end-seed',
+    ])
+    await ctx.fiber.dispose()
+  })
+
   it('attaches a subagent fork to its nearest workspace-owning ancestor', async () => {
     const accounted: SessionId[] = []
     const attachSession = vi.fn<(sessionId: SessionId) => Promise<void>>()

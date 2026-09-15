@@ -19,6 +19,10 @@ const BASE: BranchState = {
   remoteBranches: ['origin/topic'],
   busy: false,
   failure: '',
+  worktrees: [],
+  worktreeBusy: false,
+  worktreeFailure: '',
+  worktreeDirty: '',
 }
 
 /** Render the chip over a fixed store snapshot. */
@@ -28,6 +32,9 @@ function mount(state: Partial<BranchState> = {}) {
   const checkoutRemote = vi.fn()
   const createBranch = vi.fn()
   const refresh = vi.fn()
+  const refreshWorktrees = vi.fn()
+  const createWorktree = vi.fn()
+  const removeWorktree = vi.fn()
   render(<BranchPill
     t={((key: keyof typeof en) => en[key]) as never}
     useStore={((select: (s: BranchState) => unknown) => select(value)) as never}
@@ -38,8 +45,11 @@ function mount(state: Partial<BranchState> = {}) {
     checkoutRemote={checkoutRemote}
     createBranch={createBranch}
     refresh={refresh}
+    refreshWorktrees={refreshWorktrees}
+    createWorktree={createWorktree}
+    removeWorktree={removeWorktree}
   />)
-  return { switchBranch, checkoutRemote, createBranch, refresh }
+  return { switchBranch, checkoutRemote, createBranch, refresh, refreshWorktrees, createWorktree, removeWorktree }
 }
 
 /** Open the chip's popover. */

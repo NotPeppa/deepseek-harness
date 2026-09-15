@@ -272,7 +272,7 @@ export function ConversationRoot({
   const hero = sessionId === undefined
     || (shellPhase === 'blank' && (openState === 'open' || summaryBlank === true))
   const zone: InputZone | undefined =
-    session === undefined || inputState === undefined ? undefined : { session, input: inputState, hero }
+    session === undefined || inputState === undefined ? undefined : { session, input: inputState }
 
   // The chip is a selector; label resolution walks the flow top-down:
   //   1. a just-picked workspace (pending) → its title;

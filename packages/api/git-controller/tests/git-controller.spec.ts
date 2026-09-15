@@ -1,6 +1,6 @@
 /** Branch reading and the workspace fence, over a scripted subprocess seam. */
 import { describe, expect, it } from 'vitest'
-import { GitController } from '../src/index.ts'
+import { contains, GitController, isPlainSegment, parseWorktrees } from '../src/index.ts'
 
 /** One scripted git invocation keyed by its argv tail. */
 interface ScriptedRun {
@@ -20,7 +20,7 @@ interface ScriptedRun {
 function controller(
   script: (argv: readonly string[]) => ScriptedRun,
   workspaces: Record<string, string> = { ws: '/repo' },
-): { git: GitController; calls: string[][] } {
+): { git: GitController; calls: string[][]; announced: string[] } {
   const calls: string[][] = []
   const ctx = {
     subprocess: {
@@ -45,7 +45,13 @@ function controller(
   // only uses `this.ctx`, so it is installed directly.
   const git = Object.create(GitController.prototype) as GitController
   Object.defineProperty(git, 'ctx', { value: ctx })
-  return { git, calls }
+  // Field initializers do not run for a prototype-built instance; the change
+  // announcement iterates this set on every landed verb.
+  const announced: string[] = []
+  Object.defineProperty(git, 'followers', {
+    value: new Set([(change: { workspaceId: string }) => { announced.push(change.workspaceId) }]),
+  })
+  return { git, calls, announced }
 }
 
 const SIGNAL = new AbortController().signal
@@ -124,5 +130,61 @@ describe('GitController', () => {
     })
     // `--no-guess` and the `--` terminator both survive into the argv.
     expect(calls[0]).toEqual(['git', 'switch', '--no-guess', '--', 'main'])
+  })
+
+  it('parses the porcelain worktree listing and shortens branch refs', () => {
+    const listing = [
+      'worktree /repo', 'HEAD abc', 'branch refs/heads/main', '',
+      'worktree /home/.dsh/worktrees/k/topic', 'HEAD def', 'branch refs/heads/wt/topic', '',
+      // A detached checkout carries no branch line.
+      'worktree /repo/detached', 'HEAD 123', 'detached', '',
+    ].join(NL)
+    expect(parseWorktrees(listing)).toEqual([
+      { path: '/repo', branch: 'main' },
+      { path: '/home/.dsh/worktrees/k/topic', branch: 'wt/topic' },
+      { path: '/repo/detached' },
+    ])
+  })
+
+  it('contains a child but not a sibling whose name merely starts the same', () => {
+    expect(contains('/home/worktrees', '/home/worktrees/k/topic')).toBe(true)
+    expect(contains('/home/worktrees', '/home/worktrees')).toBe(true)
+    // The prefix test alone would call this one a child.
+    expect(contains('/home/worktrees', '/home/worktrees-old/k')).toBe(false)
+    expect(contains('/home/worktrees', '/home/elsewhere')).toBe(false)
+  })
+
+  it('refuses a worktree name that is not one plain directory segment', () => {
+    expect(isPlainSegment('topic')).toBe(true)
+    for (const bad of ['', '.', '..', 'a/b', 'a' + String.fromCharCode(92) + 'b', 'C:x']) {
+      expect(isPlainSegment(bad)).toBe(false)
+    }
+  })
+
+  it('refuses to remove a path outside the managed root, without running git', async () => {
+    const { git, calls } = controller(() => ({ exitCode: 0 }))
+    const outcome = await git.removeWorktree('ws', '/etc', false, SIGNAL)
+    expect(outcome.ok).toBe(false)
+    expect(outcome.message).toContain('not a worktree this harness created')
+    // The fence holds before git is asked to remove anything.
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a climbing worktree name before git sees it', async () => {
+    const { git, calls } = controller(() => ({ exitCode: 0 }))
+    const created = await git.createWorktree('ws', '../escape', '', SIGNAL)
+    expect(created.ok).toBe(false)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('announces a landed move, and stays quiet on a refusal', async () => {
+    const landed = controller(() => ({ exitCode: 0 }))
+    await landed.git.switchBranch('ws', 'dev', SIGNAL)
+    expect(landed.announced).toEqual(['ws'])
+    // A refusal changed nothing; a watcher re-reading then would learn only
+    // what it already shows.
+    const refused = controller(() => ({ exitCode: 1, stderr: 'dirty' }))
+    await refused.git.switchBranch('ws', 'dev', SIGNAL)
+    expect(refused.announced).toEqual([])
   })
 })

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { IconBranchOutline16, IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import { WorktreeDialog } from './WorktreeDialog.tsx'
 import type { createBranchStore } from './store.ts'
 import css from './BranchPill.module.css'
 
@@ -26,6 +27,12 @@ export interface BranchPillInjected {
   createBranch: (name: string) => void
   /** Re-read the checkout state (chip mount and popover open). */
   refresh: () => void
+  /** Re-read the repository's checkouts (worktree manager open). */
+  refreshWorktrees: () => void
+  /** Create an isolated checkout; an empty base means the current HEAD. */
+  createWorktree: (name: string, base: string) => void
+  /** Remove a harness-created checkout; `force` only after a dirty refusal. */
+  removeWorktree: (path: string, force: boolean) => void
 }
 
 /**
@@ -44,22 +51,14 @@ export interface BranchPillHeroInjected extends BranchPillInjected {
   adoptWorkspace: (workspaceId?: string) => void
 }
 
-/** Dock seat props: the view's share plus the input dock's runtime share. */
-export type BranchPillDockProps =
-  PropsRuntime<'conversation.input.dock'> & BranchStoreProps & PropsLocale<'git'> & BranchPillInjected
-
 /**
- * Dock seat: the same chip inside a running conversation, so the branch the
- * work lands on stays visible. Renders nothing while the Hero is showing — the
- * dock renders in that phase too (a blank session is still a session), and the
- * Hero already seats this chip, so without this the chip appeared twice.
- * @param props - dock runtime share plus the chip's own share.
- * @returns the branch chip, or nothing during the Hero phase.
+ * Input-bar seat props: the view's share plus the accessory row's runtime
+ * share. That row sits beside the access-mode chip, among controls of exactly
+ * this shape — the dock above the input is for the full-width cards (todo,
+ * queue), where a lone chip floats far from the box it belongs to.
  */
-export function DockBranchPill(props: BranchPillDockProps) {
-  if (props.hero) return null
-  return <BranchPill {...props} />
-}
+export type BranchPillDockProps =
+  PropsRuntime<'conversation.input.left'> & BranchStoreProps & PropsLocale<'git'> & BranchPillInjected
 
 /** Hero seat props: the view's share plus the hero context runtime share. */
 export type BranchPillHeroProps =
@@ -86,6 +85,7 @@ export function HeroBranchPill(props: BranchPillHeroProps) {
  */
 export function BranchPill({
   t, useStore, switchBranch, checkoutRemote, createBranch, refresh,
+  refreshWorktrees, createWorktree, removeWorktree,
 }: BranchPillViewProps) {
   const repository = useStore(s => s.repository)
   const current = useStore(s => s.current)
@@ -93,6 +93,10 @@ export function BranchPill({
   const remoteBranches = useStore(s => s.remoteBranches)
   const busy = useStore(s => s.busy)
   const failure = useStore(s => s.failure)
+  const worktrees = useStore(s => s.worktrees)
+  const worktreeBusy = useStore(s => s.worktreeBusy)
+  const worktreeFailure = useStore(s => s.worktreeFailure)
+  const worktreeDirty = useStore(s => s.worktreeDirty)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   // A switch moves files under every session of this workspace, and the rows
@@ -101,6 +105,7 @@ export function BranchPill({
   const [armed, setArmed] = useState<string | undefined>(undefined)
   const [drafting, setDrafting] = useState(false)
   const [draft, setDraft] = useState('')
+  const [managing, setManaging] = useState(false)
   const seat = useRef<HTMLDivElement>(null)
 
   // A popover that outlives a click elsewhere would hide the conversation it
@@ -266,18 +271,44 @@ export function BranchPill({
                 </form>
               )
               : (
-                <button
-                  type="button"
-                  className={css.createOpen}
-                  disabled={busy}
-                  onClick={() => { setArmed(undefined); setDrafting(true) }}
-                >
-                  {t('branch.create')}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={css.createOpen}
+                    disabled={busy}
+                    onClick={() => { setArmed(undefined); setDrafting(true) }}
+                  >
+                    {t('branch.create')}
+                  </button>
+                  <button
+                    type="button"
+                    className={css.createOpen}
+                    onClick={() => {
+                      dismiss()
+                      setManaging(true)
+                      // The listing is read on open rather than kept warm: a
+                      // worktree can appear or vanish from anywhere.
+                      refreshWorktrees()
+                    }}
+                  >
+                    {t('worktree.manage')}
+                  </button>
+                </>
               )}
           </div>
         )
         : null}
+      <WorktreeDialog
+        open={managing}
+        onClose={() => { setManaging(false) }}
+        worktrees={worktrees}
+        busy={worktreeBusy}
+        failure={worktreeFailure}
+        dirtyPath={worktreeDirty}
+        t={t}
+        onCreate={createWorktree}
+        onRemove={removeWorktree}
+      />
     </div>
   )
 }

@@ -30,7 +30,11 @@ Pick a branch from the list to check it out. A switch git refuses leaves the chi
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-**One seat, on the blank-session screen.** That is where a branch is chosen: before the work starts. The chip is deliberately not also in the conversation input dock — both render on a blank screen, since it has a session object, so the chip appeared twice — and switching a branch mid-session would move files under a session already running in that checkout. A branch is a workspace-level fact: the switch reaches every session of that workspace.
+**Two seats, one per phase.** The blank-session hero is where a branch is chosen, before the work starts; inside a running conversation the chip rides the input bar's accessory row, beside the access-mode chip, so the branch the work lands on stays visible. It is deliberately not in the dock above the input: that stacks full-width cards (todo, queue), and a lone chip there floats far from the box it belongs to. The accessory row is absent during the hero phase, so the two seats cannot both appear on one screen.
+
+**The worktree manager is a dialog, not another popover section.** The popover picks one value; the manager is a list with its own verbs, and the two together would not fit the seat the chip sits in. Only harness-created checkouts offer removal — the primary one is the repository, and an external one belongs to whoever made it — and the force button appears only after git refused for uncommitted work, so it can never be a first click.
+
+**A switch is guarded twice, not forbidden.** It reaches every session of the workspace, so a pick arms the row and a second click acts; git itself refuses the cases that would lose work, and its sentence is shown verbatim.
 
 **The workspace comes from the Hero owner share**, not from a workspace or session list. The Hero has already settled which workspace a New Session would open in, including a pick the user just made that no session references yet.
 
@@ -41,8 +45,8 @@ Pick a branch from the list to check it out. A switch git refuses leaves the chi
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- No branch creation, and no remote-tracking branches — the controller lists local branches only.
-- No branch control inside an active session.
+- A branch checked out by another worktree can only be reported, not taken — git refuses it, and the manager is where the other checkout is dealt with.
+- Creation is always at a committish; there is no picker for one, only a text field.
 - No live push: a checkout that moves while the window is focused is not noticed until the next refresh trigger.
 
 <a id="dev-note"></a>

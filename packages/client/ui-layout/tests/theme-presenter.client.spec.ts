@@ -96,9 +96,10 @@ describe('ThemePresenter', () => {
     expect(document.body.style.getPropertyValue(BACKGROUND_IMAGE_VARIABLE)).toBe('url("https://x/a.png")')
     expect(document.body.style.getPropertyValue(BACKGROUND_BLUR_VARIABLE)).toBe('8px')
     expect(document.body.style.getPropertyValue(BACKGROUND_OPACITY_VARIABLE)).toBe('0.4')
-    // Permeable surfaces are released only while a wallpaper is showing.
+    // Permeable surfaces are released only while a wallpaper is showing, and the
+    // fill they keep is the opacity slider's complement.
     expect(document.body.style.getPropertyValue(BACKGROUND_SURFACE_VARIABLE)).toBe('transparent')
-    expect(document.body.style.getPropertyValue(BACKGROUND_PANEL_ALPHA_VARIABLE)).toBe('55%')
+    expect(document.body.style.getPropertyValue(BACKGROUND_PANEL_ALPHA_VARIABLE)).toBe('60%')
     // A URL that tries to break out of url("…") is neutralised.
     presenter.apply(snapshot('light', {}, 14, { backgroundImage: 'a") ;evil(', backgroundBlur: 0, backgroundOpacity: 30 }))
     expect(document.body.style.getPropertyValue(BACKGROUND_IMAGE_VARIABLE)).toBe('url("a\\"\\) ;evil\\(")')

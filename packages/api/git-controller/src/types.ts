@@ -33,3 +33,48 @@ export interface GitSwitchOutcome {
    */
   readonly message?: string
 }
+
+/** One linked checkout of a repository. */
+export interface GitWorktree {
+  /** Absolute path of the checkout. */
+  readonly path: string
+  /** Branch checked out there, absent on a detached HEAD. */
+  readonly branch?: string
+  /** Whether this is the repository's primary checkout rather than a linked one. */
+  readonly primary: boolean
+  /** Whether this harness created it, and may therefore remove it. */
+  readonly managed: boolean
+  /** Registry id when this checkout is a registered workspace. */
+  readonly workspaceId?: string
+}
+
+/** Outcome of one worktree creation. */
+export interface GitWorktreeCreated {
+  /** Whether the checkout was created and registered. */
+  readonly ok: boolean
+  /** Git's refusal when it declined. */
+  readonly message?: string
+  /** Absolute path of the new checkout, when one was made. */
+  readonly path?: string
+  /** Registry id of the workspace now pointing at it. */
+  readonly workspaceId?: string
+}
+
+/** Outcome of one worktree removal. */
+export interface GitWorktreeRemoved {
+  /** Whether the checkout was removed and unregistered. */
+  readonly ok: boolean
+  /** Git's refusal when it declined. */
+  readonly message?: string
+  /**
+   * Whether the refusal was only that the checkout holds uncommitted work.
+   * A caller may retry with `force`; nothing else may be forced.
+   */
+  readonly dirty?: boolean
+}
+
+/** One announcement that a workspace's checkout may have moved. */
+export interface GitCheckoutChanged {
+  /** Registry id of the workspace whose checkout changed. */
+  readonly workspaceId: string
+}

@@ -13,7 +13,6 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { BranchPillHeroInjected } from '../src/client/BranchPill.tsx'
 import type { BranchState } from '../src/client/store.ts'
 import { apply, inject } from '../src/client/index.ts'
-import { DockBranchPill } from '../src/client/BranchPill.tsx'
 import { apply as nodeApply } from '../src/index.ts'
 
 afterEach(cleanup)
@@ -26,14 +25,42 @@ const STATUS = {
 async function bench(options: {
   switchOutcome?: { ok: boolean; message?: string }
   switchFails?: string
+  removeOutcome?: { ok: boolean; message?: string; dirty?: boolean }
 } = {}) {
   const ctx = new Context()
   const calls: string[] = []
+  // The Host announcement, as the plugin consumes it: one supervised stream
+  // whose items each carry `accept`.
+  let announce: ((workspaceId: string) => void) | undefined
   class RemoteService extends Service {
     constructor(serviceCtx: Context) { super(serviceCtx, 'remote') }
+
+    $stream<T>(): AsyncIterable<{ value: T; accept: () => void }> & { dispose: () => Promise<void> } {
+      const queue: Array<{ value: T; accept: () => void }> = []
+      let wake: (() => void) | undefined
+      announce = (workspaceId: string) => {
+        queue.push({ value: { workspaceId } as T, accept: () => {} })
+        wake?.()
+      }
+      let open = true
+      return {
+        dispose: () => { open = false; wake?.(); return Promise.resolve() },
+        async *[Symbol.asyncIterator]() {
+          while (open) {
+            while (queue.length > 0) {
+              const next = queue.shift()
+              if (next !== undefined) yield next
+            }
+            if (!open) return
+            await new Promise<void>((resolve) => { wake = resolve })
+          }
+        },
+      }
+    }
   }
   void new RemoteService(ctx)
   ctx.provide('remote.git', {
+    checkoutChanges: () => ({ [Symbol.asyncIterator]: () => ({ next: () => new Promise<never>(() => {}) }) }),
     status: (workspaceId: string) => {
       calls.push(`status:${workspaceId}`)
       return Promise.resolve({ ok: true, value: STATUS })
@@ -45,6 +72,18 @@ async function bench(options: {
     createBranch: (workspaceId: string, name: string) => {
       calls.push(`create:${workspaceId}:${name}`)
       return Promise.resolve({ ok: true, value: { ok: true } })
+    },
+    worktrees: (workspaceId: string) => {
+      calls.push(`worktrees:${workspaceId}`)
+      return Promise.resolve({ ok: true, value: [] })
+    },
+    createWorktree: (workspaceId: string, name: string) => {
+      calls.push(`wt-create:${workspaceId}:${name}`)
+      return Promise.resolve({ ok: true, value: { ok: true } })
+    },
+    removeWorktree: (workspaceId: string, path: string, force: boolean) => {
+      calls.push(`wt-remove:${workspaceId}:${path}:${String(force)}`)
+      return Promise.resolve({ ok: true, value: options.removeOutcome ?? { ok: true } })
     },
     switchBranch: (workspaceId: string, branch: string) => {
       calls.push(`switch:${workspaceId}:${branch}`)
@@ -61,7 +100,7 @@ async function bench(options: {
   ctx.slots.register({
     name: 'root', children: {
       'conversation.hero.context': { kind: 'list', scope: 'root' },
-      'conversation.input.dock': { kind: 'list', scope: 'session' },
+      'conversation.input.left': { kind: 'list', scope: 'session' },
     },
   } as never, (() => null) as never)
   ctx.provide('locale', new LocaleRuntime(ctx))
@@ -70,6 +109,7 @@ async function bench(options: {
   const entry = ctx.slots.entries('conversation.hero.context')[0]
   const state: BranchState = {
     repository: false, current: '', branches: [], remoteBranches: [], busy: false, failure: '',
+    worktrees: [], worktreeBusy: false, worktreeFailure: '', worktreeDirty: '',
   }
   const actions = {
     sync: (
@@ -83,31 +123,33 @@ async function bench(options: {
     },
     setBusy: (busy: boolean) => { state.busy = busy },
     setFailure: (failure: string) => { state.failure = failure },
+    syncWorktrees: (worktrees: BranchState['worktrees']) => { state.worktrees = worktrees },
+    setWorktreeBusy: (busy: boolean) => { state.worktreeBusy = busy },
+    setWorktreeOutcome: (failure: string, dirtyPath: string) => {
+      state.worktreeFailure = failure
+      state.worktreeDirty = dirtyPath
+    },
   }
   const face = (entry?.inject as unknown as (a: typeof actions) => BranchPillHeroInjected)(actions)
-  return { ctx, calls, state, face, entry }
+  return { ctx, calls, state, face, entry, announce: (id: string) => { announce?.(id) } }
 }
 
 /** Let the plugin's queued Remote reads settle. */
 const settle = async (): Promise<void> => { await Promise.resolve(); await Promise.resolve() }
 
 describe('ui-git-branch browser plugin', () => {
-  it('seats the chip in the hero and in the input dock', async () => {
+  it('seats the chip in the hero and in the input bar, never in the card dock', async () => {
     const { ctx, entry } = await bench()
     expect(entry).toBeDefined()
-    expect(ctx.slots.entries('conversation.input.dock')).toHaveLength(1)
+    expect(ctx.slots.entries('conversation.input.left')).toHaveLength(1)
+    // The dock above the input stacks full-width cards; a lone chip there
+    // floats far from the box it belongs to.
+    expect(ctx.slots.entries('conversation.input.dock')).toHaveLength(0)
   })
 
-  it('withdraws the dock seat during the Hero phase, so one screen shows one chip', () => {
-    // The dock renders in the Hero phase too — a blank session is still a
-    // session — and the Hero already seats this chip.
-    expect(DockBranchPill({ hero: true } as never)).toBeNull()
-    expect(DockBranchPill({ hero: false, useStore: (() => false) } as never)).not.toBeNull()
-  })
-
-  it('resolves a dock seat’s workspace from its own session', async () => {
+  it('resolves the input-bar seat’s workspace from its own session', async () => {
     const { ctx, calls } = await bench()
-    const dock = ctx.slots.entries('conversation.input.dock')[0]
+    const dock = ctx.slots.entries('conversation.input.left')[0]
     const noop = { sync: () => {}, setBusy: () => {}, setFailure: () => {} }
     ;(dock?.inject as unknown as (id: string, a: typeof noop) => unknown)('s-1', noop)
     await settle()
@@ -185,6 +227,42 @@ describe('ui-git-branch browser plugin', () => {
       'track:ws-1:origin/topic', 'status:ws-1',
       'create:ws-1:feature/z', 'status:ws-1',
     ])
+  })
+
+  it('re-reads on a Host announcement, without waiting for focus', async () => {
+    const { calls, face, announce } = await bench()
+    face.adoptWorkspace('ws-1')
+    await settle()
+    expect(calls).toEqual(['status:ws-1'])
+    // The model moving the checkout through git_worktree is exactly the change
+    // the browser cannot see coming.
+    announce('ws-1')
+    await settle()
+    expect(calls).toEqual(['status:ws-1', 'status:ws-1'])
+  })
+
+  it('arms a force retry only for the dirty refusal, and only for that path', async () => {
+    const { state, face } = await bench({
+      removeOutcome: { ok: false, message: 'contains modified or untracked files', dirty: true },
+    })
+    face.adoptWorkspace('ws-1')
+    await settle()
+    face.removeWorktree('/wt/topic', false)
+    await settle()
+    // Force is reachable only after git refused for uncommitted work, so it
+    // can never be a first click.
+    expect(state.worktreeDirty).toBe('/wt/topic')
+    expect(state.worktreeFailure).toContain('modified or untracked')
+  })
+
+  it('leaves every other worktree refusal unforceable', async () => {
+    const { state, face } = await bench({ removeOutcome: { ok: false, message: 'is a main working tree' } })
+    face.adoptWorkspace('ws-1')
+    await settle()
+    face.removeWorktree('/repo', false)
+    await settle()
+    expect(state.worktreeDirty).toBe('')
+    expect(state.worktreeFailure).toContain('main working tree')
   })
 
   it('keeps the node half inert', () => {

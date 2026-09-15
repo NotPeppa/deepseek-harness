@@ -308,14 +308,19 @@
 }
 
 /* Bottom fade: compact overlay pinned to the visible bottom,
-   transparent -> sidebar fill so it tracks the theme. */
+   transparent -> sidebar fill so it tracks the theme; the fill rides the
+   wallpaper panel alpha so the band stays as permeable as the panel. */
 .fade {
   position: absolute;
   left: 0;
   right: var(--dsh-session-list-edge-inset);
   bottom: 0;
   height: 24px;
-  background: linear-gradient(to bottom, transparent, var(--dsw-specific-sidebar-fill));
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--dsw-specific-sidebar-fill) var(--dsh-bg-panel-alpha, 100%), transparent)
+  );
   pointer-events: none;
 }
 

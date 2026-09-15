@@ -31,13 +31,12 @@ export const BACKGROUND_SURFACE_VARIABLE = '--dsh-bg-surface'
 /**
  * Body variable carrying how much of their own fill wallpaper-permeable panels
  * keep. Panels read it as the `color-mix` amount, so its absence (the no-
- * wallpaper case) resolves to 100% and leaves them exactly as designed. Panels
- * stay tinted rather than clear so their text keeps a readable ground.
+ * wallpaper case) resolves to 100% and leaves them exactly as designed. Every
+ * permeable surface — sidebar, right panel, settings panel, conversation
+ * column and its composer band — rides this one value, so the user's opacity
+ * slider is the single control over how much wallpaper the UI lets through.
  */
 export const BACKGROUND_PANEL_ALPHA_VARIABLE = '--dsh-bg-panel-alpha'
-
-/** Fill a permeable panel keeps while a wallpaper is showing through it. */
-const PANEL_ALPHA = '55%'
 
 /** Applies theme snapshots to the document; one instance per plugin fiber. */
 export class ThemePresenter {
@@ -96,9 +95,11 @@ export class ThemePresenter {
     body.style.setProperty(BACKGROUND_IMAGE_VARIABLE, `url("${cssUrl(snapshot.backgroundImage)}")`)
     body.style.setProperty(BACKGROUND_BLUR_VARIABLE, `${snapshot.backgroundBlur}px`)
     body.style.setProperty(BACKGROUND_OPACITY_VARIABLE, `${snapshot.backgroundOpacity / 100}`)
-    // Let the permeable surfaces above the wallpaper stop painting over it.
+    // Let the permeable surfaces above the wallpaper stop painting over it. The
+    // fill they keep is the slider's complement: the more wallpaper the user
+    // asked for, the less of their own ground the panels hold back.
     body.style.setProperty(BACKGROUND_SURFACE_VARIABLE, 'transparent')
-    body.style.setProperty(BACKGROUND_PANEL_ALPHA_VARIABLE, PANEL_ALPHA)
+    body.style.setProperty(BACKGROUND_PANEL_ALPHA_VARIABLE, `${String(100 - snapshot.backgroundOpacity)}%`)
   }
 
   /** Retract root color-scheme, the palette attribute, token variables, the font-size axis, and the owned metadata node. */

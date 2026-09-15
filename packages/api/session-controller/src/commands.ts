@@ -240,9 +240,21 @@ export class SessionCommandController {
         { sessionId: request.sessionId },
       )
     }
+    // An anchored fork names the turn the child ends at, so its prefix ends
+    // exactly there. Everything the source logged after that boundary is what
+    // the fork is leaving behind — including a prompt the inbox accepted but no
+    // turn has claimed, whose `agent/inbox/spliced` sits between the boundary
+    // and the next `turn/start`. Inheriting that insert without the claim that
+    // removes it (logged inside the turn, past the cut) would seed the child
+    // with pending input it runs on its own, which is the opposite of what
+    // anchoring at an earlier turn asks for. An unanchored fork cuts at the
+    // latest turn instead, where a queued prompt is work still expected to run,
+    // so there the scan carries it across.
     let cut = SessionLogOffset(boundary.seq + 1)
-    while (cut < source.events.length && source.events[cut]?.type !== 'turn/start') {
-      cut = SessionLogOffset(cut + 1)
+    if (anchoredBoundary === undefined) {
+      while (cut < source.events.length && source.events[cut]?.type !== 'turn/start') {
+        cut = SessionLogOffset(cut + 1)
+      }
     }
     let workspace: Workspace | undefined
     try {

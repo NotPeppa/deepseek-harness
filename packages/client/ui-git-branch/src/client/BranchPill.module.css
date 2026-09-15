@@ -196,3 +196,66 @@
   color: var(--dsw-alias-label-caption);
   cursor: default;
 }
+
+/* Worktree manager rows: branch, path, and what kind of checkout it is. */
+.treeList {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.treeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.treeText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.treeBranch {
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.treePath,
+.treeMeta {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.treeRemove,
+.treeForce {
+  flex: none;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.treeRemove {
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Only reachable after git refused for uncommitted work. */
+.treeForce {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.treeCreate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}

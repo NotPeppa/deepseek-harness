@@ -248,12 +248,6 @@ export interface ConversationHeaderLineageOwnerProps {
 export interface InputZone {
   readonly session: SessionSnapshot
   readonly input: InputState
-  /**
-   * Whether the blank-session Hero is showing. The dock renders in both
-   * phases — a blank session is still a session — so an entry that also has a
-   * Hero seat reads this to keep from appearing twice on one screen.
-   */
-  readonly hero: boolean
 }
 
 /** Conversation View entries obtain their data from registered standard hooks. */

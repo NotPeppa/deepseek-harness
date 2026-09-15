@@ -4,6 +4,7 @@
  * the only writer; the component reads through props.useStore.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
+import type { GitWorktree } from '@deepseek-ai/dsh-api-git-controller/types'
 
 /** State mirrored from one workspace's checkout. */
 export interface BranchState {
@@ -19,6 +20,17 @@ export interface BranchState {
   busy: boolean
   /** Git's refusal from the last switch, empty when the last one landed. */
   failure: string
+  /** Checkouts of this repository, read when the worktree manager opens. */
+  worktrees: readonly GitWorktree[]
+  /** A worktree create or remove is in flight. */
+  worktreeBusy: boolean
+  /** Git's refusal from the last worktree operation. */
+  worktreeFailure: string
+  /**
+   * Path whose removal was refused only because it holds uncommitted work.
+   * The manager offers that one row a force retry; nothing else may be forced.
+   */
+  worktreeDirty: string
 }
 
 /** Declared action shape giving the exported factory a stable return type. */
@@ -29,6 +41,9 @@ type BranchActions = {
   ) => void
   setBusy: (draft: BranchState, busy: boolean) => void
   setFailure: (draft: BranchState, failure: string) => void
+  syncWorktrees: (draft: BranchState, worktrees: readonly GitWorktree[]) => void
+  setWorktreeBusy: (draft: BranchState, busy: boolean) => void
+  setWorktreeOutcome: (draft: BranchState, failure: string, dirtyPath: string) => void
 }
 
 /**
@@ -39,6 +54,7 @@ export function createBranchStore(): EngineStoreHandle<BranchState, BranchAction
   return defineStore({
     init: (): BranchState => ({
       repository: false, current: '', branches: [], remoteBranches: [], busy: false, failure: '',
+      worktrees: [], worktreeBusy: false, worktreeFailure: '', worktreeDirty: '',
     }),
     actions: {
       sync: (
@@ -52,6 +68,12 @@ export function createBranchStore(): EngineStoreHandle<BranchState, BranchAction
       },
       setBusy: (d, busy: boolean) => { d.busy = busy },
       setFailure: (d, failure: string) => { d.failure = failure },
+      syncWorktrees: (d, worktrees: readonly GitWorktree[]) => { d.worktrees = worktrees },
+      setWorktreeBusy: (d, busy: boolean) => { d.worktreeBusy = busy },
+      setWorktreeOutcome: (d, failure: string, dirtyPath: string) => {
+        d.worktreeFailure = failure
+        d.worktreeDirty = dirtyPath
+      },
     },
   })
 }

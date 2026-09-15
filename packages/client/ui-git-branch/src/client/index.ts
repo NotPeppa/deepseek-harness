@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-api-git-controller/remote'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { BranchPillHeroInjected, BranchPillInjected } from './BranchPill.tsx'
-import { DockBranchPill, HeroBranchPill } from './BranchPill.tsx'
+import { BranchPill, HeroBranchPill } from './BranchPill.tsx'
 import { createBranchStore } from './store.ts'
 import { en, zh, type GitKey } from './locales.ts'
 
@@ -122,17 +122,94 @@ export function apply(ctx: ClientContext): void {
       )
     }
 
+    const refreshWorktrees = (): void => {
+      const id = workspaceId()
+      if (id === undefined) { actions.syncWorktrees([]); return }
+      void ctx.remote.git.worktrees(id).then(
+        (response) => { actions.syncWorktrees(response.ok ? response.value : []) },
+        () => { actions.syncWorktrees([]) },
+      )
+    }
+
+    /**
+     * Run one worktree call and settle the manager from its outcome. The dirty
+     * refusal is kept apart from every other: it is the only one the manager
+     * may retry with force, so it arms exactly that row and nothing else.
+     */
+    const worktreeRun = (
+      call: (id: string) => Promise<
+        { ok: true; value: { ok: boolean; message?: string; dirty?: boolean } }
+        | { ok: false; error: { message: string } }
+      >,
+      dirtyCandidate: string,
+    ): void => {
+      const id = workspaceId()
+      if (id === undefined) return
+      actions.setWorktreeBusy(true)
+      actions.setWorktreeOutcome('', '')
+      void call(id).then(
+        (response) => {
+          actions.setWorktreeBusy(false)
+          if (!response.ok) actions.setWorktreeOutcome(response.error.message, '')
+          else if (!response.value.ok) {
+            actions.setWorktreeOutcome(
+              response.value.message ?? '',
+              response.value.dirty === true ? dirtyCandidate : '',
+            )
+          }
+          // The listing moved either way: a creation added a row, a removal
+          // took one, and a refusal may still have changed what git reports.
+          refreshWorktrees()
+          refresh()
+        },
+        (reason: unknown) => {
+          actions.setWorktreeBusy(false)
+          actions.setWorktreeOutcome(String(reason), '')
+        },
+      )
+    }
+
     return {
       switchBranch: (branch) => { run(id => ctx.remote.git.switchBranch(id, branch)) },
       checkoutRemote: (remoteRef) => { run(id => ctx.remote.git.checkoutRemote(id, remoteRef)) },
       createBranch: (name) => { run(id => ctx.remote.git.createBranch(id, name)) },
       refresh,
+      refreshWorktrees,
+      createWorktree: (name, base) => {
+        worktreeRun(id => ctx.remote.git.createWorktree(id, name, base), '')
+      },
+      removeWorktree: (path, force) => {
+        worktreeRun(id => ctx.remote.git.removeWorktree(id, path, force), path)
+      },
     }
   }
 
-  // The checkout can move without the browser knowing — a terminal switch, or
-  // another session — so every seat re-reads when the window is looked at
-  // again, which is the moment a stale branch would mislead.
+  // The Host announces every checkout it moves, so a change the browser could
+  // not see coming — the model calling git_worktree, or another tab switching
+  // a branch — lands immediately instead of waiting for the next focus.
+  ctx.effect(() => {
+    const stream = ctx.remote.$stream({
+      name: 'git checkout changes',
+      open: signal => ctx.remote.git.checkoutChanges(signal),
+      ended: () => new Error('git checkout changes ended'),
+    })
+    void (async () => {
+      for await (const item of stream) {
+        item.accept()
+        // Which workspace moved is not consulted: a seat re-reads its own
+        // workspace anyway, and a repository-wide change (a worktree added or
+        // removed) touches more than the announced one.
+        for (const refresh of seats) refresh()
+      }
+    })().catch(() => {
+      // A stream that will not stay open leaves the focus re-read in charge.
+    })
+    return () => { void stream.dispose() }
+  }, 'ui-git-branch: checkout change stream')
+
+  // A checkout moved outside this Host — a terminal switch — is not announced,
+  // so every seat also re-reads when the window is looked at again, which is
+  // the moment a stale branch would mislead.
   ctx.effect(() => {
     let lastRead = 0
     const onFocus = (): void => {
@@ -170,16 +247,17 @@ export function apply(ctx: ClientContext): void {
     },
   }, HeroBranchPill))
 
-  // Dock seat: the same chip inside a running conversation, so the branch the
-  // work lands on stays visible. Session-scoped, so each session bakes its own
-  // store; the component withdraws during the Hero phase, where the dock also
-  // renders and the Hero seat already holds this chip.
+  // Input-bar seat: the same chip inside a running conversation, so the branch
+  // the work lands on stays visible. It rides the accessory row beside the
+  // access-mode chip — a row of controls of exactly this shape — rather than
+  // the dock above the input, which stacks full-width cards and leaves a lone
+  // chip floating far from the box it belongs to. That row is absent in the
+  // Hero phase, so the two seats cannot both appear on one screen.
   const dockStore = createBranchStore()
-  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
-    name: 'conversation.input.dock',
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+    name: 'conversation.input.left',
     id: 'git-branch',
-    // Ahead of the queue dock (20): the branch names where the work lands.
-    order: 15,
+    order: 10,
     store: dockStore,
     locale: GIT_LOCALE_NS,
     inject: (sessionId: SessionId, actions: BranchActions): BranchPillInjected => {
@@ -190,5 +268,5 @@ export function apply(ctx: ClientContext): void {
       face.refresh()
       return face
     },
-  }, DockBranchPill))
+  }, BranchPill))
 }

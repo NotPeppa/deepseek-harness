@@ -4,9 +4,11 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  /* Transparent while a custom background is active so the frame's wallpaper
-     shows through this column; the fallback is the normal opaque fill. */
-  background: var(--dsh-bg-surface, var(--dsw-alias-bg-base));
+  /* Permeable while a custom background is active, on the same axis as every
+     other panel (--dsh-bg-panel-alpha, driven by the opacity setting) so the
+     column lets the wallpaper through by exactly as much as the sidebar does.
+     Absent the wallpaper the mix resolves to 100% — the normal opaque fill. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) var(--dsh-bg-panel-alpha, 100%), transparent);
 
   /* Shared width axis for the whole column: one content width W
      (--dsh-chat-content-width) for the transcript, the dock cards
@@ -379,11 +381,12 @@
      solid below — px stops, not %, so a growing draft only widens the solid
      region and the fade band never stretches. The 0px stop is bg-base at
      zero alpha (not white, which the figma export hardcodes) so both themes
-     fade from their own base. */
+     fade from their own base. The solid end rides --dsh-bg-panel-alpha so a
+     wallpaper shows through the band instead of hitting an opaque strip. */
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px,
-    var(--dsw-alias-bg-base) 36px
+    color-mix(in srgb, var(--dsw-alias-bg-base) var(--dsh-bg-panel-alpha, 100%), transparent) 36px
   );
 }
 
