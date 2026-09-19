@@ -217,7 +217,11 @@ export class PlanModelSwitchCardController {
     this.groups = []
     this.status = 'idle'
     this.partial = false
-    this.store.set(this.projection())
+    // The new connection serves its own catalog. Publishing the empty groups
+    // without re-reading would strand both selects on the no-switch choice
+    // until some later invalidation happened to fire — and `connection/reset`
+    // fires on the FIRST connect too, right after the constructor's read.
+    void this.loadCatalog()
   }
 
   /** Stop publishing after the card's plugin unloads. */

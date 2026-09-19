@@ -1275,4 +1275,28 @@ describe('PlanModelSwitchCardController', () => {
     expect(planning.efforts).toEqual([])
     expect(planning.effort.text).toBe('')
   })
+
+  it('re-reads the catalog for the new connection, so the selects are not stranded empty', async () => {
+    const host = stubSettingsScope<PlanModelSwitchSettings>()
+    const models = modelsApi({
+      groups: [{ id: 'alpha', name: 'Alpha API', models: [{ id: 'fast', name: 'Fast' }] }],
+    })
+    const controller = new PlanModelSwitchCardController(host.scope, models.ctx)
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+    await vi.waitFor(() => {
+      expect(face.hooks.planModelSwitchCard.getSnapshot().catalogStatus).toBe('ready')
+    })
+
+    // `connection/reset` fires on every connect, the first one included.
+    controller.resetConnection()
+
+    await vi.waitFor(() => {
+      expect(face.hooks.planModelSwitchCard.getSnapshot().planning.choices).toEqual([
+        { value: '', label: '' },
+        { value: 'alpha/fast', label: 'Fast', group: 'Alpha API' },
+      ])
+    })
+    expect(models.models).toHaveBeenCalledTimes(2)
+  })
 })

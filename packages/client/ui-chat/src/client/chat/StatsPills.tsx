@@ -244,6 +244,11 @@ function UsagePill({ usage, t, dialog }: {
   const totalText = t('message.turnUsage.count', { count: formatTokens(total, t) })
   const cacheHit = cacheHitPercent(usage)
   const cacheHitText = cacheHit !== null ? t('stats.cacheHit', { percent: cacheHit }) : null
+  const ioText = t('stats.io', {
+    input: formatTokens(billedInputTokens(usage), t),
+    output: formatTokens(usage.outputTokens, t),
+  })
+  const segments = [totalText, ioText, ...(cacheHitText === null ? [] : [cacheHitText])]
   return (
     <span ref={rootRef} className={css.anchor}>
       <button
@@ -251,18 +256,17 @@ function UsagePill({ usage, t, dialog }: {
         className={css.pill}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={cacheHitText === null ? totalText : `${totalText} · ${cacheHitText}`}
+        aria-label={segments.join(' · ')}
         onClick={() => { setOpen(!open) }}
       >
         <IconDatabaseOutline16 />
         <span className={css.label}>
-          {totalText}
-          {cacheHitText !== null && (
-            <>
-              <span className={css.sep} aria-hidden>·</span>
-              {cacheHitText}
-            </>
-          )}
+          {segments.map((segment, index) => (
+            <span key={segment}>
+              {index > 0 && <span className={css.sep} aria-hidden>·</span>}
+              {segment}
+            </span>
+          ))}
         </span>
       </button>
       {open && createPortal(
