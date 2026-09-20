@@ -1,6 +1,6 @@
 // Session stats under the composer, split into two icon pills: a gauge pill
-// (turn/step counts + output speed) opening the time-and-speed dialog, and a
-// database pill (total tokens + cache hit) opening the token-usage dialog.
+// (turn/step counts) opening the time-and-speed dialog, and a database pill
+// (total tokens + I/O + cache hit + output speed) opening the token-usage dialog.
 // Settled-node identity prevents stream-delta updates from rerendering the row.
 // Mounted on 'conversation.composer.dock' so it sticks with the composer in the
 // active conversation scrollport (see ConversationRoot data-conversation-scroll).
@@ -142,22 +142,7 @@ function TimePill({ stats, t, dialog }: {
 }) {
   const { open, setOpen, rootRef, panelRef, pos } = useStatDialog(dialog)
   const counts = t('stats.counts', { turns: stats.turns, steps: stats.steps })
-  const tps = stats.decodeMs > 0
-    ? t('message.tokensPerSecond', {
-      tps: formatTokensPerSecond(stats.decodeTokens / (stats.decodeMs / 1_000)),
-    })
-    : null
-  const label = (
-    <span className={css.label}>
-      {counts}
-      {tps !== null && (
-        <>
-          <span className={css.sep} aria-hidden>·</span>
-          {tps}
-        </>
-      )}
-    </span>
-  )
+  const label = <span className={css.label}>{counts}</span>
   // A window without one timed figure has no dialog rows to show, so the pill
   // stays a plain reading instead of a button opening an empty dialog.
   if (stats.llmMs <= 0 && stats.toolMs <= 0 && stats.ttftSteps <= 0 && stats.decodeMs <= 0) {
@@ -177,7 +162,7 @@ function TimePill({ stats, t, dialog }: {
         className={css.pill}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={tps === null ? counts : `${counts} · ${tps}`}
+        aria-label={counts}
         onClick={() => { setOpen(!open) }}
       >
         <IconGaugeOutline16 />
@@ -233,8 +218,10 @@ function TimePill({ stats, t, dialog }: {
   )
 }
 
-function UsagePill({ usage, t, dialog }: {
+function UsagePill({ usage, tps, t, dialog }: {
   usage: TokenUsageProjection
+  /** Output speed reading, rendered last in the row; null when no step decode-timed. */
+  tps: string | null
   t: ChatViewSlotProps['t']
   dialog: PillDialog
 }) {
@@ -248,7 +235,12 @@ function UsagePill({ usage, t, dialog }: {
     input: formatTokens(billedInputTokens(usage), t),
     output: formatTokens(usage.outputTokens, t),
   })
-  const segments = [totalText, ioText, ...(cacheHitText === null ? [] : [cacheHitText])]
+  const segments = [
+    totalText,
+    ioText,
+    ...(cacheHitText === null ? [] : [cacheHitText]),
+    ...(tps === null ? [] : [tps]),
+  ]
   return (
     <span ref={rootRef} className={css.anchor}>
       <button
@@ -329,6 +321,11 @@ export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }
   // while no projection value is served.
   const projected = useProjection('sessionStats')
   const stats = useMemo(() => projected ?? deriveStats(settledNodes), [projected, settledNodes])
+  const tps = stats.decodeMs > 0
+    ? t('message.tokensPerSecond', {
+      tps: formatTokensPerSecond(stats.decodeTokens / (stats.decodeMs / 1_000)),
+    })
+    : null
   // Gated on actual token activity: a session whose steps all settled without
   // billing (e.g. every request failed) shows its counts without a usage pill.
   const hasTokens = usage !== undefined
@@ -351,6 +348,7 @@ export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }
       {hasTokens && (
         <UsagePill
           usage={usage}
+          tps={tps}
           t={t}
           dialog={{
             open: openPill === 'usage',

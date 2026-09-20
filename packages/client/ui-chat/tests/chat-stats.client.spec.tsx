@@ -205,12 +205,14 @@ describe('StatsPills', () => {
     expect(view.getAllByRole('button')[0]!.textContent).toContain(expected)
   })
 
-  it('exposes output speed on the counts pill when decode timing exists', () => {
+  it('exposes output speed last on the usage pill when decode timing exists', () => {
     const { source } = makeSource({ nodes: [timedStep()] })
     const view = render(<StatsPills {...props(source)} />)
-    const timePill = view.getAllByRole('button')[0]!
-    expect(timePill.textContent).toBe('1 turns 1 steps·20 tok/s')
-    expect(timePill.getAttribute('aria-label')).toBe('1 turns 1 steps · 20 tok/s')
+    const [timePill, usagePill] = [...view.getAllByRole('button')] as [HTMLElement, HTMLElement]
+    expect(timePill.textContent).toBe('1 turns 1 steps')
+    expect(timePill.getAttribute('aria-label')).toBe('1 turns 1 steps')
+    expect(usagePill.textContent).toBe('105 tok·↑100 ↓5·Cache hit 90%·20 tok/s')
+    expect(usagePill.getAttribute('aria-label')).toBe('105 tok · ↑100 ↓5 · Cache hit 90% · 20 tok/s')
   })
 
   it('click-opens the time-and-speed dialog carrying the time split and speeds', () => {
@@ -302,9 +304,9 @@ describe('StatsPills', () => {
     const { source } = makeSource({ nodes: [timedStep()] })
     const view = render(<StatsPills {...props(source, { tokenUsage: tokenUsage(9_995, 5) })} t={t} />)
     const [timePill, usagePill] = [...view.getAllByRole('button')] as [HTMLElement, HTMLElement]
-    expect(timePill.textContent).toBe('1 轮 1 步·20 tok/s')
+    expect(timePill.textContent).toBe('1 轮 1 步')
     // Whole-log total 9995 + 5 + 1 compacts to 10K.
-    expect(usagePill.textContent).toBe('10K tok·↑10K ↓1·缓存命中 99.95%')
+    expect(usagePill.textContent).toBe('10K tok·↑10K ↓1·缓存命中 99.95%·20 tok/s')
     fireEvent.click(timePill)
     const timeDialog = view.getByRole('dialog')
     expect(timeDialog.getAttribute('aria-label')).toBe('会话统计')
@@ -395,8 +397,9 @@ describe('StatsPills', () => {
         ttftMs: 1_600, ttftSteps: 2, decodeMs: 3_000, decodeTokens: 60,
       }),
     })} />)
-    const timePill = view.getAllByRole('button')[0]!
-    expect(timePill.textContent).toBe('200 turns 200 steps·20 tok/s')
+    const [timePill, usagePill] = [...view.getAllByRole('button')] as [HTMLElement, HTMLElement]
+    expect(timePill.textContent).toBe('200 turns 200 steps')
+    expect(usagePill.textContent).toContain('20 tok/s')
     fireEvent.click(timePill)
     const dialog = view.getByRole('dialog')
     expect(dialog.textContent).toContain('LLM time1m40s')
