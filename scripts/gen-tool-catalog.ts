@@ -222,10 +222,10 @@ const TOOL_PACKAGES: ToolPackage[] = [
     requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.userQuestions (execution time, opportunistic)'],
     writes: ['tool/call', 'plan/mode inactive on an approved review', 'tool/result'],
     async mount(ctx) {
-      await ctx.plugin(PlanModeController, { section: 'Tool catalog schema harvest.' })
+      await ctx.plugin(PlanModeController, { section: 'Tool catalog schema harvest.', maxExecutionAgents: 8 })
     },
     note:
-      'exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam (approve / keep planning with feedback), and approval logs plan mode inactive at the step boundary.',
+      'exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam, then asks for a bounded worker-agent count after approval. A valid count reaches the model in the result and logs plan mode inactive at the step boundary.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-bash',

@@ -16,7 +16,7 @@ Plan mode 还需要持久协作状态、可评审的计划产物、显式人工�
 
 Plan mode 拥有一个 plan 专用产品包：位于 `packages/plan/plan-mode/` 的 `@deepseek-ai/dsh-plan-mode`。持久化事实为 `plan/mode: { active: boolean }`，由本包的 `plan` 投影单元折叠——`planProjectionDefinition.apply` 作用于已提交事件，空日志折叠为未激活（`active: false`）——所有投影单元现在一律持久化，`persist` 选项已删除。host 逻辑通过 `ctx.sessionProjections.stateOf(session, 'plan')` 读取折叠结果，客户端视图为 `{ active, pending }`。`ctx.planMode.get(agent)` 返回 `{ active, pending? }`，`set(agent, active)` 则记录在边界生效的选择。pre-step、重试、追加失败和 dispose（资源释放）栅栏保留相同的状态转换归属。
 
-配置严格为 `{ section: string }`。该包自行注册固定的 `plan:policy` 段、`/plan [message]`、精确匹配的 `/plan off` 主动退出形式，以及 `exit_plan_mode`。不带参数的 `/plan` 选择激活；其他非空参数则先选择激活，再通过 `agent.steer()` 发送去除首尾空白后的文本，使该文本在受影响的步骤中成为一条记录到日志的普通用户消息。`/plan off` 选择未激活，不产生模型输入，并可取消仍待在边界生效的进入选择。即使 plan mode 未激活，退出工具仍保持注册，以确保请求工具目录稳定。
+配置严格为 `{ section: string, maxExecutionAgents: number }`；该最大值是 1 至 32 的整数。该包自行注册固定的 `plan:policy` 段、`/plan [message]`、精确匹配的 `/plan off` 主动退出形式，以及 `exit_plan_mode`。不带参数的 `/plan` 选择激活；其他非空参数则先选择激活，再通过 `agent.steer()` 发送去除首尾空白后的文本，使该文本在受影响的步骤中成为一条记录到日志的普通用户消息。`/plan off` 选择未激活，不产生模型输入，并可取消仍待在边界生效的进入选择。即使 plan mode 未激活，退出工具仍保持注册，以确保请求工具目录稳定。
 
 面向人类的组合拥有 plan 选择与评审。本笔记最初把 ACP 协议级的 `default`/`plan` 选择器保留为布尔服务之上的适配器；[ACP 作为仅面向自动化的协议](2026-07-23-acp-automation-only-protocol.zh.md) 取代了那个协议投影，因此 ACP 组合现在既不挂载 plan mode，也不提供模式选择协议。
 
@@ -30,9 +30,9 @@ Plan mode 拥有一个 plan 专用产品包：位于 `packages/plan/plan-mode/` 
 
 ### 经评审的退出
 
-`exit_plan_mode` 要求调用方 agent 处于激活的 plan mode，并提交一份非空、以标题开头的 markdown 计划。用户交互问题将这份原样计划作为详情，并提供 `Approve`、`Keep planning` 和自由文本反馈。仅当唯一选择为 `Approve` 且没有自定义文本时才视为同意；其他所有回答都会留在 plan mode，并向模型返回纠正性反馈。经批准的退出会成为一项静默的待生效选择，使 plan 引导在当前工具批次的剩余部分继续有效，并在下一次请求前移除。
+`exit_plan_mode` 要求调用方 agent 处于激活的 plan mode，并提交一份非空、以标题开头的 markdown 计划。第一次用户交互请求将这份原样计划作为详情，并提供 `Approve`、`Keep planning` 和自由文本反馈。仅当唯一选择为 `Approve` 且没有自定义文本时才视为同意；其他所有回答都会留在 plan mode，并向模型返回纠正性反馈。批准会打开第二个通用问题，每个已配置的 worker 数对应一个选项。有效选项或数字形式的自定义答案返回 `{ approved: true, execution_agents }`；渲染结果要求 Lead 创建该数量的 worker、给每个 worker 分配不同任务、维持依赖与重叠写入的顺序、等待每个 worker、整合并验收。只有两个问题都成功后，退出才成为一项静默的待生效选择，使 plan 引导在当前工具批次的剩余部分继续有效，并在下一次请求前移除。关闭问题、选择无效或服务在任一问题期间卸载都会以失败关闭。
 
-工具将提交的计划渲染为 generic 卡片，标题取自第一个标题。用户交互提供方缺失或失败、评审失败，或评审待定期间插件被 dispose，均会拒绝退出，并保留手动 `/plan off` 作为人类退出路径。
+工具将提交的计划渲染为 generic 卡片，标题取自第一个标题。用户交互提供方缺失或失败、任一问题失败，或任一问题待定期间插件被 dispose，均会拒绝退出，并保留手动 `/plan off` 作为人类退出路径。
 
 ## 删除的接口
 

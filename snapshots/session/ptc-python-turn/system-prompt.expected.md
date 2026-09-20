@@ -152,6 +152,8 @@ class ExitPlanModeArgs(TypedDict):
 
 class ExitPlanModeOutput(TypedDict):
     approved: Literal[True]
+    # Worker agents selected by the user; the coordinating lead is not included.
+    execution_agents: int
 
 class GetGoalOutput1(TypedDict):
     goal: None

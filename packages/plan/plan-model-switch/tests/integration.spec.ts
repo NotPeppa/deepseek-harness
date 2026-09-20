@@ -12,7 +12,7 @@ import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
 import type { Config } from '@deepseek-ai/dsh-plan-model-switch'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
-const PLAN_CONFIG = { section: 'Test plan mode instructions.' }
+const PLAN_CONFIG = { section: 'Test plan mode instructions.', maxExecutionAgents: 4 }
 
 const ROUTES: Config = {
   planningProvider: 'mock',
@@ -162,7 +162,13 @@ describe('plan phase model routing', () => {
 
   it('runs without a compaction service mounted', async () => {
     const adapter = new MockAdapter([textResponse('Plan.'), textResponse('Execute.')])
-    const ctx = await harness(adapter, { ...ROUTES, foldPlanning: true })
+    const ctx = await harness(adapter, {
+      planningProvider: 'mock',
+      planningModel: 'planner',
+      executingProvider: 'mock',
+      executingModel: 'executor',
+      foldPlanning: true,
+    })
     const agent = await ctx.agentLoop.create(SessionId('phase-nofold'), { provider: 'mock', model: 'base' })
 
     ctx.planMode.set(agent, true)

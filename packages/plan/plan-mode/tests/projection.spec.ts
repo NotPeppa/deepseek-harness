@@ -27,7 +27,7 @@ async function harness(withPlanMode: boolean): Promise<Bench> {
   await ctx.plugin(UserQuestionService)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(SessionProjectionRegistry)
-  if (withPlanMode) await ctx.plugin(PlanModeController, { section: 'plan policy' })
+  if (withPlanMode) await ctx.plugin(PlanModeController, { section: 'plan policy', maxExecutionAgents: 4 })
   const session = ctx.sessions.create()
   ctx.agents.register({ id: session.id, session, status: 'idle', ctx } as Agent)
   return {
@@ -143,7 +143,7 @@ describe('plan projection unit', () => {
 
   it('drops the key when the plan-mode fiber unloads (HMR safety)', async () => {
     const bench = await harness(false)
-    const fiber = await bench.ctx.plugin(PlanModeController, { section: 'plan policy' })
+    const fiber = await bench.ctx.plugin(PlanModeController, { section: 'plan policy', maxExecutionAgents: 4 })
     expect(bench.values().plan).toEqual({ active: false, pending: false })
     await fiber.dispose()
     expect('plan' in bench.values()).toBe(false)

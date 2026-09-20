@@ -23,14 +23,16 @@ agent 运行时，唯一的追加点是前置（prepend）注册的 `agent/pre-s
 interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
+  /** Largest worker-agent count offered after the user approves a plan. */
+  maxExecutionAgents: number
 }
 ```
 
-`section` 缺失、为空白或不是字符串，以及任何未知键，都会在插件加载时失败，而不是被忽略。计划模式激活期间，确切的 `section` 文本以 order 50 渲染为 `plan:policy` [系统提示词段落](system-prompt.zh.md)；未激活的计划模式不贡献任何文本。
+`section` 缺失、为空白或不是字符串，`maxExecutionAgents` 不是 1 至 32 的整数，以及存在任何未知键，都会在插件加载时失败，而不是被忽略。计划模式激活期间，确切的 `section` 文本以 order 50 渲染为 `plan:policy` [系统提示词段落](system-prompt.zh.md)；未激活的计划模式不贡献任何文本。
 
 ## 退出工具与 `/plan` 命令
 
-[`exit_plan_mode`](../tool-catalog.zh.md#deepseek-aidsh-plan-mode) 在计划模式未激活时仍保持注册，因此进入或离开计划模式只改变提示词段落，绝不改变请求的工具目录；在计划模式之外执行会失败。在计划模式中，它要求一份以 `#` 标题开头的完整 markdown 计划，并通过[用户交互 seam](user-questions.zh.md) 呈交评审。批准返回 `{ approved: true }`，并记录一个静默（不叙述）的待生效退出，由下一个被接受的轮内 pre-step 追加。因此，计划指引在 assistant 当前这批工具调用的剩余部分继续生效，而工具结果本身会报告这次转换。「继续规划」则是一次携带用户反馈的失败调用，模型据此修订并再次呈交；评审期间交互通道缺失或服务重载同样使调用失败，而不是静默离开计划模式。
+[`exit_plan_mode`](../tool-catalog.zh.md#deepseek-aidsh-plan-mode) 在计划模式未激活时仍保持注册，因此进入或离开计划模式只改变提示词段落，绝不改变请求的工具目录；在计划模式之外执行会失败。在计划模式中，它要求一份以 `#` 标题开头的完整 markdown 计划，并通过[用户交互 seam](user-questions.zh.md) 呈交评审。批准后会打开第二个问题，其选项从 1 到 `maxExecutionAgents`；有效选择返回 `{ approved: true, execution_agents: number }`，并记录一个静默的待生效退出，由下一个被接受的轮内 pre-step 追加。渲染后的工具结果要求 Lead 创建所选数量的 worker、给每个 worker 分配不同任务、按序处理有依赖或范围重叠的工作、等待所有 worker、整合并验收。计划指引在当前这批工具调用的剩余部分继续生效。「继续规划」、无效 worker 数、关闭任一问题、交互通道缺失，以及任一问题等待期间服务重载，都会使调用失败且不离开计划模式。
 
 当 [`ctx.commands`](commands.zh.md) 被组合时，插件注册 `/plan [off|message]`：单独的 `/plan` 选择计划模式；任何其他非空消息先选择计划模式，再通过 `agent.steer()` 提交该文本，使其在计划指引下成为下一步骤的普通已记录用户消息；确切参数 `off` 选择未激活，这还会在待生效条目被追加并对请求可见之前将其取消。
 

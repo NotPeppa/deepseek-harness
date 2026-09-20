@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-计划模式要求 agent 先探索和设计再执行，然后把完成的计划呈交你批准。用 `/plan` 进入，并可附带一条消息或按顺序排列的图片与文件附件；用 `/plan off` 离开，批准评审以继续执行，或反馈意见以要求继续规划。部署方定义的引导控制规划行为，但每个工具仍然可用，因此请用沙箱模式与审批提示施加强制限制。激活状态会在会话恢复和 fork 后保留。当你希望 agent 行动前先提交一份经评审的计划时，选择计划模式。
+计划模式要求 agent 先探索和设计再执行，然后把完成的计划呈交你批准，并询问使用多少个 worker agent 执行。用 `/plan` 进入，并可附带一条消息或按顺序排列的图片与文件附件；用 `/plan off` 离开，批准评审以继续执行，或反馈意见以要求继续规划。部署方定义的引导控制规划行为，但每个工具仍然可用，因此请用沙箱模式与审批提示施加强制限制。激活状态会在会话恢复和 fork 后保留。当你希望 agent 行动前先提交一份经评审的计划时，选择计划模式。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-计划模式激活时，agent 会按你的指令行事，并先呈交计划供评审，而不是立即执行。常用路径：配置引导文本，用 `/plan` 进入计划模式，agent 调用 `exit_plan_mode` 时评审完成的计划。
+计划模式激活时，agent 会按你的指令行事，并先呈交计划供评审，而不是立即执行。常用路径：配置引导与 worker 上限，用 `/plan` 进入计划模式，agent 调用 `exit_plan_mode` 时评审完成的计划，再选择执行阶段使用多少个 worker agent。
 
 ### 何时选择
 
@@ -33,11 +33,12 @@ kind: "package-reference"
 
 ### 最小配置
 
-唯一必需的配置是 agent 规划期间遵循的引导文本；添加任何其他配置都会在加载时失败。
+配置必须包含规划引导，以及批准后提供的最大 worker agent 数；添加任何其他配置都会在加载时失败。
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'
   config:
+    maxExecutionAgents: 8
     section: |
       You are in plan mode. Explore and design before presenting the complete
       plan through exit_plan_mode.
@@ -46,6 +47,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `section` | 必填 | 计划模式激活时作为 `plan:policy` 提示词段落渲染的引导 |
+| `maxExecutionAgents` | 必填 | 批准后提供的最大 worker agent 数；取 1 至 32 的整数 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-plan-mode)完整列出了所有受支持的字段及其 JSDoc。
 
@@ -58,9 +60,9 @@ kind: "package-reference"
 
 ### 经评审的退出
 
-agent 完成计划后，会以 markdown 形式、从标题开头书写计划并调用 `exit_plan_mode`。你评审该计划的原文，选择 `Approve` 离开计划模式，或选择 `Keep planning` 带反馈把 agent 送回去。
+agent 完成计划后，会以 markdown 形式、从标题开头书写计划并调用 `exit_plan_mode`。你评审该计划的原文，选择 `Approve` 继续，或选择 `Keep planning` 带反馈把 agent 送回去。批准后，再选择使用多少个 worker agent；Lead 不计入该数量，并负责协调、等待、整合与验收，而不占用一个 worker 名额。
 
-选择 `Keep planning`（可附自由文本反馈）会让 agent 回去修订计划；关闭评审改为发言，则告知 agent 等待你的下一条消息。若没有可用的交互评审，`exit_plan_mode` 无法运行，你仍可用 `/plan off` 离开计划模式。
+选择 `Keep planning`（可附自由文本反馈）会让 agent 回去修订计划；关闭任一问题改为发言，则告知 agent 等待你的下一条消息。执行阶段会创建所选数量的 worker，为每个 worker 分配计划中的不同任务，并按顺序处理有依赖或改动范围重叠的工作。若没有可用的交互评审，`exit_plan_mode` 无法运行，你仍可用 `/plan off` 离开计划模式。
 
 ### 观察计划状态
 
@@ -90,7 +92,7 @@ agent 完成计划后，会以 markdown 形式、从标题开头书写计划并�
 
 ### 退出工具
 
-`exit_plan_mode` 在计划模式未激活时仍保持注册，因此进入或离开只改变提示词段落，绝不改变请求的工具目录。经批准的评审会记录一个静默的待生效退出，由下一个被接受的轮内 pre-step 追加，当前这批工具调用剩余部分仍保留计划引导。缺少用户交互通道，或评审等待期间服务重载，调用都会以拒绝方式失败，`/plan off` 仍是手动退路。
+`exit_plan_mode` 在计划模式未激活时仍保持注册，因此进入或离开只改变提示词段落，绝不改变请求的工具目录。经批准的评审会用一个通用后续问题询问 worker agent 并发数，再记录一个静默的待生效退出，由下一个被接受的轮内 pre-step 追加。工具结果把选定数量与委派指令保留在模型历史中，而当前这批工具调用剩余部分仍保留计划引导。缺少用户交互通道、任一问题被关闭，或任一问题等待期间服务重载，调用都会以拒绝方式失败，`/plan off` 仍是手动退路。
 
 ### 会话投影单元
 
@@ -163,7 +165,7 @@ You are in plan mode. Explore and design before presenting the complete plan thr
 
 #### 模型看到什么
 
-[`exit_plan_mode` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-plan-mode) 在两种状态下均可用；在计划模式之外执行会失败，而计划模式内经批准的评审返回规范的 `{ approved: true }` 值，并渲染既有的确认文本。拒绝仍是携带评审反馈的失败调用，放弃评审则是一次指明用户接手的失败调用。
+[`exit_plan_mode` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-plan-mode) 在两种状态下均可用；在计划模式之外执行会失败，而计划模式内经批准的评审返回 `{ approved: true, execution_agents: number }`。渲染后的结果要求 Lead 创建该数量的 worker、给每个 worker 分配不同任务、等待每个 worker、整合结果并验收计划。拒绝仍是携带评审反馈的失败调用，关闭任一问题则返回一次指明用户接手的失败调用。
 
 #### Token 影响
 
@@ -185,6 +187,7 @@ You are in plan mode. Explore and design before presenting the complete plan thr
 - **没有创建时 plan 选项**——fork 的 agent 继承已记录的计划状态，新 spawn 的 agent 则从未激活开始。
 - **存活的子级无法打开评审**——由另一个存活 agent 所有的子级调用 `exit_plan_mode` 会失败，并被要求把尚未解决的决策包含进最终结果；仅有持久化 fork 谱系并不能阻止恢复为运行时根的会话打开该评审。
 - **只有一个专用评审渲染器**——只有 Web UI 具备 `plan-review` 呈现；其他交互提供方通过其通用选项流程呈现同一请求。
+- **委派遵循模型指令**——所选数量与分配规则是已记录且模型可见的指令，不是运行时调度器；执行 preset 需要 subagent 工具，而且计划需要为所选数量的 worker 提供足够多的不同任务。
 
 <a id="dev-note"></a>
 ### 开发备注

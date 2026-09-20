@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Plan mode asks an agent to explore and design before execution, then presents the finished plan for your approval. Enter it with `/plan`, optionally with a message or ordered image and file attachments; leave with `/plan off`, approve the review to continue, or return feedback for more planning. Deployment-defined guidance controls planning behavior, but every tool remains available, so use sandbox mode and approval prompts for enforced limits. The active state survives session resume and forks. Choose it when you want a reviewed plan before the agent acts.
+Plan mode asks an agent to explore and design before execution, then presents the finished plan for your approval and asks how many worker agents may execute it. Enter it with `/plan`, optionally with a message or ordered image and file attachments; leave with `/plan off`, approve the review to continue, or return feedback for more planning. Deployment-defined guidance controls planning behavior, but every tool remains available, so use sandbox mode and approval prompts for enforced limits. The active state survives session resume and forks. Choose it when you want a reviewed plan before the agent acts.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Plan mode asks an agent to explore and design before execution, then presents th
 <a id="use-this-package"></a>
 ## Use this package
 
-When plan mode is active, the agent works under your instructions and presents its plan for review instead of executing right away. The common path: configure the guidance text, enter plan mode with `/plan`, and review the finished plan when the agent calls `exit_plan_mode`.
+When plan mode is active, the agent works under your instructions and presents its plan for review instead of executing right away. The common path: configure the guidance and worker limit, enter plan mode with `/plan`, review the finished plan when the agent calls `exit_plan_mode`, then choose the maximum worker-agent concurrency for execution.
 
 ### When to choose it
 
@@ -33,11 +33,12 @@ Choose plan mode when the agent should explore and design before executing and y
 
 ### Minimal configuration
 
-The only required configuration is the guidance text the agent follows while planning; anything else you add fails at load.
+Configuration requires the planning guidance and the largest worker-agent count offered after approval; anything else fails at load.
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'
   config:
+    maxExecutionAgents: 8
     section: |
       You are in plan mode. Explore and design before presenting the complete
       plan through exit_plan_mode.
@@ -46,6 +47,7 @@ The only required configuration is the guidance text the agent follows while pla
 | Field | Default | Meaning |
 |---|---|---|
 | `section` | required | Guidance rendered as the `plan:policy` prompt section while plan mode is active |
+| `maxExecutionAgents` | required | Largest worker-agent count offered after approval; integer from 1 through 32 |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-plan-mode) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -58,9 +60,9 @@ You can attach images and generic files to a `/plan` message, and they are inclu
 
 ### The reviewed exit
 
-When the agent has a finished plan, it calls `exit_plan_mode` with the plan written as markdown and starting with a heading. You review that exact plan and choose `Approve` to leave plan mode, or `Keep planning` to send the agent back with feedback.
+When the agent has a finished plan, it calls `exit_plan_mode` with the plan written as markdown and starting with a heading. You review that exact plan and choose `Approve` to continue, or `Keep planning` to send the agent back with feedback. After approval, choose the number of worker agents; the lead is not included and coordinates, waits, integrates, and validates instead of owning one worker slot.
 
-Choosing `Keep planning` (optionally with free-text feedback) sends the agent back to revise the plan; closing the review to type a message instead tells the agent to wait for your next message. If no interactive review is available, `exit_plan_mode` cannot run and you can still leave plan mode with `/plan off`.
+Choosing `Keep planning` (optionally with free-text feedback) sends the agent back to revise the plan; closing either question to type a message instead tells the agent to wait for your next message. Execution creates the selected number of workers, assigns a distinct task from the plan to each one, and keeps dependent or overlapping changes ordered. If no interactive review is available, `exit_plan_mode` cannot run and you can still leave plan mode with `/plan off`.
 
 ### Observing plan state
 
@@ -90,7 +92,7 @@ The command child activates only when a commands service is composed. It maps ba
 
 ### The exit tool
 
-`exit_plan_mode` stays registered while plan mode is inactive, so entering or leaving changes only the prompt section, never the request tool catalog. An approved review records a silent pending exit that the next accepted in-turn pre-step appends, keeping plan guidance for the rest of the current tool batch. Without a user-questions channel, or after a service reload while the review is pending, the call fails closed and `/plan off` remains the manual escape.
+`exit_plan_mode` stays registered while plan mode is inactive, so entering or leaving changes only the prompt section, never the request tool catalog. An approved review asks one generic follow-up for worker-agent concurrency, then records a silent pending exit that the next accepted in-turn pre-step appends. The tool result retains the selected count and delegation instructions in model history while plan guidance remains active for the rest of the current tool batch. Without a user-questions channel, after either question is dismissed, or after a service reload while either question is pending, the call fails closed and `/plan off` remains the manual escape.
 
 ### Session projection unit
 
@@ -163,7 +165,7 @@ The user block is append-only conversation growth. Entering or leaving plan mode
 
 #### What the model sees
 
-The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#deepseek-aidsh-plan-mode) remains available in both states; execution outside plan mode fails, while an approved in-mode review returns the canonical `{ approved: true }` value and renders the existing confirmation text. Rejection remains a failed call carrying review feedback, and a dismissed review a failed call naming the user's takeover.
+The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#deepseek-aidsh-plan-mode) remains available in both states; execution outside plan mode fails, while an approved in-mode review returns `{ approved: true, execution_agents: number }`. Its rendered result tells the lead to create that many workers, assign each a distinct task, wait for every worker, integrate the results, and validate the plan. Rejection remains a failed call carrying review feedback, and dismissing either question returns a failed call naming the user's takeover.
 
 #### Token effect
 
@@ -185,6 +187,7 @@ These limits describe when plan mode does not behave as you might expect or need
 - **No creation-time plan option** — forked agents inherit logged plan state, while newly spawned agents begin inactive.
 - **Live children cannot open the review** — a child owned by another live agent fails the `exit_plan_mode` call and is told to include the unresolved decision in its final result; durable fork lineage alone does not prevent a session resumed as a runtime root from opening the review.
 - **One specialized review renderer** — only the Web UI has a `plan-review` presentation; another interaction provider presents the same request through its generic option flow.
+- **Delegation follows model instructions** — the selected count and allocation rules are logged model-visible instructions, not a runtime scheduler; an execution preset needs subagent tools, and the plan needs enough distinct tasks for the selected worker count.
 
 <a id="dev-note"></a>
 ### Dev Note

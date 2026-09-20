@@ -1675,6 +1675,8 @@ export interface Config {
 export interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
+  /** Largest worker-agent count offered after the user approves a plan. */
+  maxExecutionAgents: number
 }
 ```
 

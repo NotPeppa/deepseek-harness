@@ -10,7 +10,7 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
-const PLAN_CONFIG = { section: 'Test plan mode instructions.' }
+const PLAN_CONFIG = { section: 'Test plan mode instructions.', maxExecutionAgents: 4 }
 
 /**
  * Full-loop integration: a scripted mock model drives the REAL plan-mode plugin

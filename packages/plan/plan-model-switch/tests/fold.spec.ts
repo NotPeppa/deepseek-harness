@@ -14,7 +14,7 @@ import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
 import type { Config } from '@deepseek-ai/dsh-plan-model-switch'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
-const PLAN_CONFIG = { section: 'Test plan mode instructions.' }
+const PLAN_CONFIG = { section: 'Test plan mode instructions.', maxExecutionAgents: 4 }
 
 const ROUTES: Config = {
   planningProvider: 'mock',
@@ -77,9 +77,12 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<{
     parameters: {},
     execute: () => Promise.resolve([{ type: 'text', text: 'file contents' }]),
   }))
-  // A human who approves every plan review.
+  // A human who approves every plan and selects two worker agents.
   ctx.on('user-questions/request', (request, next) => {
     const question = request.questions[0]
+    if (question?.id === 'execution-agents') {
+      return Promise.resolve({ answers: [{ id: question.id, selected: ['2'] }] })
+    }
     const approve = question?.intent?.approve
     if (question === undefined || approve === undefined) return next()
     return Promise.resolve({ answers: [{ id: question.id, selected: [approve] }] })
@@ -150,7 +153,13 @@ describe('folding the planning span', () => {
 
   it('does not fold when the configuration turns it off', async () => {
     const { ctx, compaction } = await harness(
-      new MockAdapter(planningScript()), { ...ROUTES, foldPlanning: false })
+      new MockAdapter(planningScript()), {
+        planningProvider: 'mock',
+        planningModel: 'planner',
+        executingProvider: 'mock',
+        executingModel: 'executor',
+        foldPlanning: false,
+      })
     const agent = await ctx.agentLoop.create(SessionId('fold-off'), { provider: 'mock', model: 'base' })
 
     await turn(ctx, agent, 'hello')

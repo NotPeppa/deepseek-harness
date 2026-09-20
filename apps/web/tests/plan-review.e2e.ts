@@ -2,8 +2,8 @@
 // plan mode and its client seat, so `/plan <task>` enters plan mode for real
 // and the recorded turn ends on exit_plan_mode blocking against the live
 // userInteraction seam. The composer is then occupied by the plan decision
-// card — not the generic question flow — and approving it through the card
-// completes the turn with the approval in the log.
+// card — not the generic question flow. Approval opens the ordinary execution-
+// agent question, and answering it completes the turn with both choices in the log.
 // Replay is deterministic: the plan content arrives from replayed chunks, the
 // review wait is real, and the approve click is the test's own gesture (the
 // turn cannot complete without it, in record and replay alike).
@@ -101,6 +101,12 @@ describe('web e2e: plan review takeover round trip', () => {
     // under the click position, whose 200ms hover delay would arm a tooltip
     // into the aria captures below.
     await page.mouse.move(0, 0)
+
+    const executionQuestion = page.locator('[data-question-key]')
+    await executionQuestion.waitFor({ timeout: 10_000 })
+    await expect.poll(() => executionQuestion.getByText('Execution agents', { exact: true }).count(), { timeout: 10_000 }).toBe(1)
+    await executionQuestion.getByRole('radio', { name: '2' }).click()
+    await executionQuestion.getByRole('button', { name: 'Submit' }).click()
 
     const sessionId = await settled
     if (MODE === 'record') {

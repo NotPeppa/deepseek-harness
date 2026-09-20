@@ -18,7 +18,7 @@ import type { PlanModeConfig } from '../src/index.ts'
 import type { PlanUnitState } from '../src/types.ts'
 
 const TEST_PLAN_SECTION = 'Test plan mode instructions.'
-const PLAN_CONFIG = { section: TEST_PLAN_SECTION } satisfies PlanModeConfig
+const PLAN_CONFIG = { section: TEST_PLAN_SECTION, maxExecutionAgents: 4 } satisfies PlanModeConfig
 
 interface QuestionAnswerer {
   ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>
@@ -164,7 +164,8 @@ function expectPlanCodeSdkBindings(sdk: string): void {
   expect(sdk).toContain('read: Record<string, JsonValue>;')
   expect(sdk).toContain('write: Record<string, JsonValue>;')
   expect(sdk).toContain('interface ToolOutputMap {')
-  expect(sdk).toContain('exit_plan_mode: {\n    approved: true;\n  };')
+  expect(sdk).toContain('exit_plan_mode: {\n    approved: true;')
+  expect(sdk).toContain('execution_agents: number;\n  };')
   expect(sdk).toContain('[K in ToolName]: (args: ToolArgsMap[K]) => Promise<ToolOutputMap[K]>;')
 }
 
@@ -185,20 +186,27 @@ describe('resolveConfig', () => {
       .toThrow('needs a string `section`')
     expect(() => resolveConfig({ section: 5 } as unknown as PlanModeConfig))
       .toThrow('needs a string `section`')
-    expect(() => resolveConfig({ section: '   ' }))
+    expect(() => resolveConfig({ section: '   ', maxExecutionAgents: 4 }))
       .toThrow('needs a non-empty `section`')
   })
 
+  it('requires a bounded integer execution-agent count', () => {
+    for (const maxExecutionAgents of [undefined, 0, 1.5, 33]) {
+      expect(() => resolveConfig({ section: TEST_PLAN_SECTION, maxExecutionAgents } as PlanModeConfig))
+        .toThrow('needs an integer `maxExecutionAgents` from 1 through 32')
+    }
+  })
+
   it('returns a detached plan config', () => {
-    const config = { section: TEST_PLAN_SECTION }
+    const config = { section: TEST_PLAN_SECTION, maxExecutionAgents: 4 }
     const resolved = resolveConfig(config)
     expect(resolved).toEqual(config)
     expect(resolved).not.toBe(config)
   })
 
   it('rejects fields outside the plan policy config', () => {
-    expect(() => resolveConfig({ section: TEST_PLAN_SECTION, tools: ['read'] } as unknown as PlanModeConfig))
-      .toThrow('unknown key(s) tools — config is { section }')
+    expect(() => resolveConfig({ ...PLAN_CONFIG, tools: ['read'] } as unknown as PlanModeConfig))
+      .toThrow('unknown key(s) tools — config is { section, maxExecutionAgents }')
   })
 })
 
@@ -804,7 +812,10 @@ describe('/plan', () => {
 })
 
 describe('exit_plan_mode', () => {
-  async function setupWithReview(answer?: { selected: string[]; custom?: string }) {
+  async function setupWithReview(
+    answer?: { selected: string[]; custom?: string },
+    executionAnswer: { selected: string[]; custom?: string } = { selected: ['2'] },
+  ) {
     const ctx = await setup()
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(UserQuestionService)
@@ -813,7 +824,11 @@ describe('exit_plan_mode', () => {
       registerQuestionAnswerer(ctx, {
         ask: (request) => {
           asked.push(request)
-          return Promise.resolve({ answers: [{ id: 'plan-review', ...answer }] })
+          const id = request.questions[0]?.id
+          return Promise.resolve({ answers: [{
+            id: id ?? 'missing-question',
+            ...(id === 'execution-agents' ? executionAnswer : answer),
+          }] })
         },
       })
     }
@@ -909,18 +924,27 @@ describe('exit_plan_mode', () => {
     const result = await callExit(ctx, agent)
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected approved plan result')
-    expect(result.value).toEqual({ approved: true })
-    expect(result.content).toEqual([{ type: 'text', text: 'Plan approved — plan mode exited; carry out the plan starting with your next step.' }])
+    expect(result.value).toEqual({ approved: true, execution_agents: 2 })
+    expect(result.content).toEqual([{
+      type: 'text',
+      text: 'Plan approved — plan mode exited. Create exactly 2 worker agents; the lead coordinates, waits for every worker, integrates the results, and validates the completed plan. Assign a distinct task from the plan to each worker, and keep dependent or overlapping work ordered.',
+    }])
     // Boundary-applied, not a direct append: the fold stays plan until the
     // step's end, so the plan policy covers any remaining call of the SAME batch.
     expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
     expect(ctx.planMode.get(agent)).toEqual({ active: true, pending: false })
     await boundary(ctx, agent, 'step-start')
     expect(foldPlanMode(agent.session.snapshotEvents())).toBe(false)
-    expect(asked).toHaveLength(1)
+    expect(asked).toHaveLength(2)
     expect(asked[0]?.agent).toBe(agent)
     expect(asked[0]?.questions[0]?.detail).toBe('# The plan\n\ndo things')
     expect(asked[0]?.questions[0]?.options?.map(option => option.label)).toEqual(['Approve', 'Keep planning'])
+    expect(asked[1]?.questions[0]).toMatchObject({
+      id: 'execution-agents',
+      header: 'Execution agents',
+      question: 'How many worker agents should execute this plan?',
+    })
+    expect(asked[1]?.questions[0]?.options?.map(option => option.label)).toEqual(['1', '2', '3', '4'])
   })
 
   it('carries the exact plan through a PTC mode review and logs the nested dispatch', async () => {
@@ -946,7 +970,8 @@ describe('exit_plan_mode', () => {
     registerQuestionAnswerer(ctx, {
       ask: (request) => {
         asked.push(request)
-        return Promise.resolve({ answers: [{ id: 'plan-review', selected: ['Approve'] }] })
+        const id = request.questions[0]?.id ?? 'missing-question'
+        return Promise.resolve({ answers: [{ id, selected: [id === 'execution-agents' ? '3' : 'Approve'] }] })
       },
     })
     const agent = await agentWithSession(ctx, 'ptc-exit', { active: true })
@@ -960,7 +985,7 @@ describe('exit_plan_mode', () => {
     })
 
     expect(result.isError).toBe(false)
-    expect(asked).toHaveLength(1)
+    expect(asked).toHaveLength(2)
     expect(asked[0]?.questions[0]).toMatchObject({
       header: 'Plan review',
       question: 'Approve this plan and leave plan mode?',
@@ -1072,6 +1097,30 @@ describe('exit_plan_mode', () => {
     expect(question?.options?.map(option => option.label)).toContain(question?.intent?.approve)
   })
 
+  it('accepts a custom execution-agent count within the configured range', async () => {
+    const { ctx, agent } = await setupWithReview({ selected: ['Approve'] }, { selected: [], custom: '4' })
+    const result = await callExit(ctx, agent)
+    expect(result.isError).toBe(false)
+    if (result.isError) throw new Error('expected approved plan result')
+    expect(result.value).toEqual({ approved: true, execution_agents: 4 })
+  })
+
+  it.each([
+    { selected: [] },
+    { selected: ['1', '2'] },
+    { selected: ['5'] },
+    { selected: [], custom: 'two' },
+  ])('rejects an invalid execution-agent answer and keeps planning ($selected, $custom)', async (executionAnswer) => {
+    const { ctx, agent } = await setupWithReview({ selected: ['Approve'] }, executionAnswer)
+    const result = await callExit(ctx, agent)
+    expect(result.isError).toBe(true)
+    expect(result.content).toEqual([{
+      type: 'text',
+      text: 'Error: Choose one execution-agent count from 1 through 4; stay in plan mode and present the plan again.',
+    }])
+    expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
+  })
+
   it('reads a dismissed review as the user taking the turn back, not as a failure', async () => {
     const { ctx, agent } = await setupWithReview()
     registerQuestionAnswerer(ctx, {
@@ -1083,6 +1132,25 @@ describe('exit_plan_mode', () => {
     const result = await callExit(ctx, agent)
     expect(result.isError).toBe(true)
     expect(result.content).toEqual([{ type: 'text', text: 'Error: The user dismissed the plan review to speak instead; stay in plan mode, stop here, and wait for their message.' }])
+    expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
+  })
+
+  it('reads dismissed execution-agent selection as the user taking the turn back', async () => {
+    const { ctx, agent } = await setupWithReview()
+    registerQuestionAnswerer(ctx, {
+      ask: request => request.questions[0]?.id === 'plan-review'
+        ? Promise.resolve({ answers: [{ id: 'plan-review', selected: ['Approve'] }] })
+        : Promise.reject(Object.assign(
+          new Error('the user cancelled ask_user_question'),
+          { name: 'UserQuestionError', code: 'ASK_CANCELLED' },
+        )),
+    })
+    const result = await callExit(ctx, agent)
+    expect(result.isError).toBe(true)
+    expect(result.content).toEqual([{
+      type: 'text',
+      text: 'Error: The user dismissed execution-agent selection to speak instead; stay in plan mode, stop here, and wait for their message.',
+    }])
     expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
   })
 
@@ -1109,7 +1177,7 @@ describe('exit_plan_mode', () => {
       signal: controller.signal,
     })
     expect(result.isError).toBe(false)
-    expect(asked[0]?.signal).toBe(controller.signal)
+    expect(asked.map(request => request.signal)).toEqual([controller.signal, controller.signal])
   })
 
   it('fails the call when the plugin is disposed while the review awaits (no phantom exit)', async () => {
@@ -1135,6 +1203,40 @@ describe('exit_plan_mode', () => {
     const result = await pending
     expect(result.isError).toBe(true)
     expect(result.content).toEqual([{ type: 'text', text: 'Error: the plan-mode service was reloaded while the plan was under review; present the plan again' }])
+    expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
+  })
+
+  it('fails the call when the plugin is disposed while execution-agent selection awaits', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await mountProjectionSeam(ctx)
+    const fiber = await ctx.plugin(PlanModeController, PLAN_CONFIG)
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(UserQuestionService)
+    let answerExecution!: (value: { answers: { id: string; selected: string[] }[] }) => void
+    let signalExecutionAsked!: () => void
+    const executionAsked = new Promise<void>((resolve) => { signalExecutionAsked = resolve })
+    registerQuestionAnswerer(ctx, {
+      ask: (request) => {
+        if (request.questions[0]?.id === 'plan-review') {
+          return Promise.resolve({ answers: [{ id: 'plan-review', selected: ['Approve'] }] })
+        }
+        signalExecutionAsked()
+        return new Promise((resolve) => { answerExecution = resolve })
+      },
+    })
+    const agent = await agentWithSession(ctx, 'agent-1', { active: true })
+    const pending = callExit(ctx, agent)
+    await executionAsked
+    await fiber.dispose()
+    answerExecution({ answers: [{ id: 'execution-agents', selected: ['2'] }] })
+    const result = await pending
+    expect(result.isError).toBe(true)
+    expect(result.content).toEqual([{
+      type: 'text',
+      text: 'Error: the plan-mode service was reloaded while execution-agent selection was pending; present the plan again',
+    }])
     expect(foldPlanMode(agent.session.snapshotEvents())).toBe(true)
   })
 

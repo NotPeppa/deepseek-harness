@@ -316,6 +316,8 @@ interface ToolOutputMap {
   };
   exit_plan_mode: {
     approved: true;
+    /** Worker agents selected by the user; the coordinating lead is not included. */
+    execution_agents: number;
   };
   get_goal: {
     goal: null;

@@ -64,6 +64,8 @@ export const EXIT_PLAN_MODE = 'exit_plan_mode'
 export interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
+  /** Largest worker-agent count offered after the user approves a plan. */
+  maxExecutionAgents: number
 }
 
 /** The review question's id, echoed in the answer this tool reads. */
@@ -74,6 +76,12 @@ const APPROVE_LABEL = 'Approve'
 
 /** The review question's keep-planning option label. */
 const KEEP_PLANNING_LABEL = 'Keep planning'
+
+/** The execution-parallelism question's id, echoed in the answer this tool reads. */
+const EXECUTION_AGENTS_ID = 'execution-agents'
+
+/** Safety ceiling for the option list and one approved plan's requested concurrency. */
+const MAX_EXECUTION_AGENTS_LIMIT = 32
 
 const EXIT_DESCRIPTION
   = 'Use only in plan mode. Present your plan for the user\'s review and, on approval, leave plan mode. '
@@ -99,17 +107,24 @@ function firstHeading(plan: string): string | undefined {
  */
 export function resolveConfig(config: PlanModeConfig): PlanModeConfig {
   const section = (config as Partial<PlanModeConfig>).section
+  const maxExecutionAgents = (config as Partial<PlanModeConfig>).maxExecutionAgents
   if (typeof section !== 'string') {
     throw new Error('PlanModeConfig needs a string `section`')
   }
   if (section.trim() === '') {
     throw new Error('PlanModeConfig needs a non-empty `section`')
   }
-  const unknown = Object.keys(config).filter(key => key !== 'section')
-  if (unknown.length > 0) {
-    throw new Error(`PlanModeConfig has unknown key(s) ${unknown.join(', ')} — config is { section }`)
+  if (typeof maxExecutionAgents !== 'number'
+    || !Number.isSafeInteger(maxExecutionAgents)
+    || maxExecutionAgents < 1
+    || maxExecutionAgents > MAX_EXECUTION_AGENTS_LIMIT) {
+    throw new Error(`PlanModeConfig needs an integer \`maxExecutionAgents\` from 1 through ${MAX_EXECUTION_AGENTS_LIMIT}`)
   }
-  return { section }
+  const unknown = Object.keys(config).filter(key => key !== 'section' && key !== 'maxExecutionAgents')
+  if (unknown.length > 0) {
+    throw new Error(`PlanModeConfig has unknown key(s) ${unknown.join(', ')} — config is { section, maxExecutionAgents }`)
+  }
+  return { section, maxExecutionAgents }
 }
 
 const planUnitStateSchema: ZodType<PlanUnitState> = zod.object({
@@ -174,6 +189,9 @@ export class PlanModeController extends Service {
   /** Validated deployment-owned guidance. */
   private readonly section: string
 
+  /** Largest worker-agent count offered after approval. */
+  private readonly maxExecutionAgents: number
+
   /**
    * Latest selection per session awaiting the next accepted in-turn pre-step.
    * `narrate` is true for user selections and false for the exit tool, whose
@@ -181,10 +199,13 @@ export class PlanModeController extends Service {
    */
   private readonly pendingIntents = new WeakMap<Session, { active: boolean; narrate: boolean }>()
 
-  constructor(ctx: Context, config: PlanModeConfig = { section: '' }) {
+  constructor(ctx: Context, config: PlanModeConfig = { section: '', maxExecutionAgents: 0 }) {
     super(ctx, 'planMode')
-    this.section = resolveConfig(config).section
+    const resolvedConfig = resolveConfig(config)
+    this.section = resolvedConfig.section
+    this.maxExecutionAgents = resolvedConfig.maxExecutionAgents
     let disposed = false
+    const isDisposed = (): boolean => disposed
     // Pre-step is outside Session.append publication, so it can append the
     // log-only mode event inside an open turn without re-entering the session.
     // A failed append remains pending for a later accepted in-turn pre-step,
@@ -282,9 +303,19 @@ export class PlanModeController extends Service {
           additionalProperties: false,
           properties: {
             approved: { type: 'boolean', const: true, required: true },
+            execution_agents: {
+              type: 'integer',
+              required: true,
+              description: 'Worker agents selected by the user; the coordinating lead is not included.',
+            },
           },
         },
-        render: () => [{ type: 'text', text: 'Plan approved — plan mode exited; carry out the plan starting with your next step.' }],
+        render: (_args, value) => [{
+          type: 'text',
+          text: `Plan approved — plan mode exited. Create exactly ${value.execution_agents} worker agent${value.execution_agents === 1 ? '' : 's'}; `
+            + 'the lead coordinates, waits for every worker, integrates the results, and validates the completed plan. '
+            + 'Assign a distinct task from the plan to each worker, and keep dependent or overlapping work ordered.',
+        }],
       },
       execute: async (args, exec) => {
         const agent = exec.agent
@@ -330,7 +361,7 @@ export class PlanModeController extends Service {
         })
         // A review may outlive this plugin fiber. Without its pre-step listener,
         // an approved selection could never be appended, so fail and keep planning.
-        if (disposed) {
+        if (isDisposed()) {
           throw new Error('the plan-mode service was reloaded while the plan was under review; present the plan again')
         }
         const reviewItems = answer.answers.filter(entry => entry.id === REVIEW_ID)
@@ -341,11 +372,48 @@ export class PlanModeController extends Service {
             ? 'The user chose to keep planning; revise the plan and present it again.'
             : `The user chose to keep planning; their feedback: ${feedback}`)
         }
+        const executionAnswer = await interaction.ask({
+          questions: [{
+            id: EXECUTION_AGENTS_ID,
+            header: 'Execution agents',
+            question: 'How many worker agents should execute this plan?',
+            detail: 'The lead agent coordinates, integrates, and validates the work; it is not included in this number.',
+            options: Array.from({ length: this.maxExecutionAgents }, (_, index) => {
+              const count = index + 1
+              return {
+                label: String(count),
+                description: count === 1
+                  ? 'Use one worker agent while the lead coordinates.'
+                  : `Use ${count} worker agents with a distinct task for each.`,
+              }
+            }),
+          }],
+          agent,
+          signal: exec.signal,
+        }).catch((cause: unknown) => {
+          if (cause instanceof UserQuestionError && cause.code === 'ASK_CANCELLED') {
+            throw new Error('The user dismissed execution-agent selection to speak instead; '
+              + 'stay in plan mode, stop here, and wait for their message.')
+          }
+          throw cause
+        })
+        if (isDisposed()) {
+          throw new Error('the plan-mode service was reloaded while execution-agent selection was pending; present the plan again')
+        }
+        const executionItems = executionAnswer.answers.filter(entry => entry.id === EXECUTION_AGENTS_ID)
+        const executionItem = executionItems.length === 1 ? executionItems[0] : undefined
+        const selectedCount = executionItem?.custom ?? (executionItem?.selected.length === 1 ? executionItem.selected[0] : undefined)
+        const executionAgents = selectedCount === undefined || !/^\d+$/.test(selectedCount)
+          ? Number.NaN
+          : Number(selectedCount)
+        if (!Number.isSafeInteger(executionAgents) || executionAgents < 1 || executionAgents > this.maxExecutionAgents) {
+          throw new Error(`Choose one execution-agent count from 1 through ${this.maxExecutionAgents}; stay in plan mode and present the plan again.`)
+        }
         // Keep plan guidance for the rest of this assistant tool batch. The
         // silent selection is appended at the next accepted in-turn pre-step,
         // before its request assembly.
         this.pendingIntents.set(agent.session, { active: false, narrate: false })
-        return { approved: true }
+        return { approved: true, execution_agents: executionAgents }
       },
       presentCall: args => ({
         card: 'generic',

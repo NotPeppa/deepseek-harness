@@ -23,14 +23,16 @@ The only append point while an agent is running is a prepended `agent/pre-step` 
 interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
+  /** Largest worker-agent count offered after the user approves a plan. */
+  maxExecutionAgents: number
 }
 ```
 
-A missing, blank, or non-string `section` and any unknown key fail at plugin load rather than being ignored. While plan mode is active, the exact `section` text renders as the `plan:policy` [system-prompt section](system-prompt.md) at order 50; inactive plan mode contributes no text.
+A missing, blank, or non-string `section`, a `maxExecutionAgents` value outside the integer range 1 through 32, and any unknown key fail at plugin load rather than being ignored. While plan mode is active, the exact `section` text renders as the `plan:policy` [system-prompt section](system-prompt.md) at order 50; inactive plan mode contributes no text.
 
 ## The exit tool and the `/plan` command
 
-[`exit_plan_mode`](../tool-catalog.md#deepseek-aidsh-plan-mode) stays registered while plan mode is inactive, so entering or leaving plan mode changes only the prompt section, never the request tool catalog; execution outside plan mode fails. In plan mode it requires a complete markdown plan starting with a `#` heading and presents it for review through the [user-questions seam](user-questions.md). Approval returns `{ approved: true }` and records a silent (non-narrated) pending exit that is appended at the next accepted in-turn pre-step. Plan guidance therefore remains active for the rest of the assistant's current tool batch, and the tool result itself reports the transition. Keep-planning is a failed call carrying the user's feedback, so the model revises and presents again; a missing interaction channel and a service reload during review also fail the call rather than silently leaving plan mode.
+[`exit_plan_mode`](../tool-catalog.md#deepseek-aidsh-plan-mode) stays registered while plan mode is inactive, so entering or leaving plan mode changes only the prompt section, never the request tool catalog; execution outside plan mode fails. In plan mode it requires a complete markdown plan starting with a `#` heading and presents it for review through the [user-questions seam](user-questions.md). Approval opens a second question whose choices run from 1 through `maxExecutionAgents`; a valid selection returns `{ approved: true, execution_agents: number }` and records a silent pending exit that is appended at the next accepted in-turn pre-step. The rendered tool result tells the lead to create the selected workers, assign each a distinct task, order dependent or overlapping work, wait for every worker, integrate, and validate. Plan guidance remains active for the rest of the current tool batch. Keep-planning, an invalid worker count, a dismissed question, a missing interaction channel, and a service reload during either question all fail the call without leaving plan mode.
 
 When [`ctx.commands`](commands.md) is composed, the plugin registers `/plan [off|message]`: bare `/plan` selects plan mode, any other non-empty message selects it and then submits the text through `agent.steer()` so it becomes the next step's ordinary logged user message under plan guidance, and the exact argument `off` selects inactive, which also cancels a pending entry before it is appended and becomes visible to a request.
 
