@@ -90,6 +90,14 @@
     - id: settings
       name: '@deepseek-ai/dsh-settings-file'
 
+    # Phase routes are chosen before a plan/execute session exists. Their
+    # namespace therefore stays on the Host while the agent-plane runtime is
+    # still mounted only by the plan-execute preset.
+    - id: plan-model-switch-settings
+      name: '@deepseek-ai/dsh-plan-model-switch/settings'
+      config:
+        foldPlanning: true
+
     # Credential sources: inherited environment over the managed
     # `$DSH_HOME/.credentials.yaml`, with project and user `.env` fallbacks.
     # Adapters resolve references per request; the Models page writes only the

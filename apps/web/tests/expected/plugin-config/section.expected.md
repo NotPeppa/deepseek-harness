@@ -40,3 +40,11 @@
         - 'button "展开设置: 网页搜索"':
           - text: 网页搜索 DeepSeek 搜索提供方。
           - img
+      - listitem:
+        - 'button "展开设置: TinyFish 网页搜索"':
+          - text: TinyFish 网页搜索 通过 TinyFish 搜索网页。TinyFish 账号的搜索额度免费。
+          - img
+      - listitem:
+        - 'button "展开设置: 规划与执行模型"':
+          - text: 规划与执行模型 让规划阶段与执行阶段各用一个模型。仅对组合了阶段路由的预设生效；某一阶段留空则保持会话自身的模型。
+          - img

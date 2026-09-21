@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `dsh-plan-model-switch`，一个会话可以规划用一个模型、执行用另一个模型：进入计划模式时路由到规划模型，计划通过时路由到执行模型，产出计划的探索过程被折叠成一段摘要，因此执行阶段携带的是成果物而不是整份记录。当规划与执行的成本或能力画像不同时选择它。某一阶段只有同时配置了提供方与模型才会生效，因此未配置的部署与此前行为完全一致。`plan-execute` Agent 预设组合了本包；发布的 `standard` 预设没有。
+使用 `dsh-plan-model-switch` 可以让规划阶段与执行阶段采用不同模型。进入计划模式时选择规划模型；批准计划时选择执行模型，并把探索过程折叠成一段摘要，让执行阶段携带成果物而非整份记录。当两个阶段需要不同的成本或能力画像时选择它。某个阶段只有同时配置提供方和模型才会切换。`plan-execute` 预设挂载运行时；基于 base 的 profile 会在任何会话启动前保持设置可见，而 `standard` 永远不会应用这些设置。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-新建会话时选择 **计划/执行模式** 预设，然后在 **设置 › 插件 › 插件配置 › 规划与执行模型** 里选两个模型。两处都是下拉框，取自本部署已配置的模型目录（与模型页面同源）；模型若声明了推理强度，还会多一个强度下拉。之后就是普通流程：`/plan` 进入计划模式，审阅 Agent 通过 `exit_plan_mode` 提交的计划，批准它。模型正是在批准那一刻切换的。
+随时可以在 **设置 › 插件 › 插件配置 › 规划与执行模型** 里选择两个模型，然后在新建会话时选择 **计划/执行模式** 预设。即使没有活跃的计划/执行会话，这张设置卡也始终可见。两个模型字段都是下拉框，取自本部署已配置的模型目录（与模型页面同源）；模型若声明了推理强度，还会多一个强度下拉。之后就是普通流程：`/plan` 进入计划模式，审阅 Agent 通过 `exit_plan_mode` 提交的计划，批准它。模型正是在批准那一刻切换的。
 
 ### 何时选择
 
@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-在已有计划模式的组合中挂载此行。路由交给设置段而不内联在这里，因为部署持有哪些模型不是发布的组合能知道的事实。
+基于 base 的 profile 会在 Host 上挂载 `@deepseek-ai/dsh-plan-model-switch/settings`，由它持有持久设置命名空间。在已有计划模式的 Agent 组合中挂载运行时行。路由交给设置段而不内联在这里，因为部署持有哪些模型不是发布的组合能知道的事实。
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'
@@ -41,8 +41,6 @@ kind: "package-reference"
     section: |
       You are in plan mode. …
 - name: '@deepseek-ai/dsh-plan-model-switch'
-  config:
-    foldPlanning: true
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -86,7 +84,8 @@ kind: "package-reference"
 
 | 文件 | 角色 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 插件入口：配置 schema、设置段、阶段边界与路由安装 |
+| [`src/index.ts`](src/index.ts) | Agent 运行时：配置 schema、阶段边界、设置覆盖与路由安装 |
+| [`src/settings.ts`](src/settings.ts) | Host 伴生插件：独立于活跃会话常驻注册设置命名空间 |
 | [`src/routes.ts`](src/routes.ts) | 扁平的分阶段路由形状及其到 `ModelSelection` 的投影 |
 | [`src/fold.ts`](src/fold.ts) | 跨度选择：成果物节点，以及它之前那段平衡的规划跨度 |
 | — | 不发布运行时不变量伴随文档；除其所属 seam 强制的契约外，本包不暴露独立的事件序列或可变数据关系。 |

@@ -9,7 +9,12 @@ import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
-import type { Config } from '@deepseek-ai/dsh-plan-model-switch'
+import {
+  PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
+  type Config,
+} from '@deepseek-ai/dsh-plan-model-switch'
+import * as planModelSwitchSettings from '@deepseek-ai/dsh-plan-model-switch/settings'
+import { MemorySettings } from '../../../settings/settings/tests/memory.ts'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
 const PLAN_CONFIG = { section: 'Test plan mode instructions.', maxExecutionAgents: 4 }
@@ -35,6 +40,8 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<C
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
+  await ctx.plugin(MemorySettings)
+  await ctx.plugin(planModelSwitchSettings, config)
   await ctx.plugin(PlanModeController, PLAN_CONFIG)
   await ctx.plugin(planModelSwitch, config)
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -74,6 +81,16 @@ function models(requests: readonly GenerateOptions[]): string[] {
 }
 
 describe('plan phase model routing', () => {
+  it('keeps its settings namespace registered independently of the runtime plugin', async () => {
+    const ctx = new Context()
+    await ctx.plugin(MemorySettings)
+    await ctx.plugin(planModelSwitchSettings)
+
+    expect(ctx.settings.describe().find(
+      descriptor => descriptor.ns === PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
+    )?.value).toEqual({ foldPlanning: true })
+  })
+
   it('routes planning and execution to their own models across one plan cycle', async () => {
     const adapter = new MockAdapter([
       textResponse('Here is the plan.'),
@@ -88,6 +105,26 @@ describe('plan phase model routing', () => {
     await turn(ctx, agent, 'go ahead')
 
     expect(models(adapter.requests)).toEqual(['planner', 'executor'])
+  })
+
+  it('layers saved Host settings over the preset entry at each phase boundary', async () => {
+    const adapter = new MockAdapter([
+      textResponse('Here is the plan.'),
+      textResponse('Executing it.'),
+    ])
+    const ctx = await harness(adapter)
+    await ctx.settings.update(PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE, {
+      planningModel: 'saved-planner',
+      executingModel: 'saved-executor',
+    })
+    const agent = await ctx.agentLoop.create(SessionId('phase-settings'), { provider: 'mock', model: 'base' })
+
+    ctx.planMode.set(agent, true)
+    await turn(ctx, agent, 'design the change')
+    ctx.planMode.set(agent, false)
+    await turn(ctx, agent, 'go ahead')
+
+    expect(models(adapter.requests)).toEqual(['saved-planner', 'saved-executor'])
   })
 
   it('leaves a session that never plans on the route it was created with', async () => {

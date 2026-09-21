@@ -76,12 +76,15 @@ describe('web e2e: plugin configuration section', () => {
     const dialog = await openPlugins()
 
     // Every card the shipped web composition exposes: the shell executor, the
-    // agent loop, subagent selection, and the DeepSeek search provider.
+    // agent loop, subagent selection, both search providers, and the Host-owned
+    // phase routes that stay available before any plan/execute session exists.
     await dialog.getByText('Subagent', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await dialog.getByRole('button', { name: '展开设置: Subagent' }).count()).toBe(1)
     await dialog.getByText('终端', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await dialog.getByText('Agent 循环', { exact: true }).count()).toBe(1)
     expect(await dialog.getByText('网页搜索', { exact: true }).count()).toBe(1)
+    expect(await dialog.getByText('TinyFish 网页搜索', { exact: true }).count()).toBe(1)
+    expect(await dialog.getByText('规划与执行模型', { exact: true }).count()).toBe(1)
     // Collapsed: a card's fields appear only once it is expanded.
     expect(await dialog.getByLabel('命令超时（毫秒）').count()).toBe(0)
 

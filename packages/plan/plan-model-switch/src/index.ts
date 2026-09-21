@@ -71,19 +71,17 @@ interface PhaseState {
 /**
  * Mount phase routing for every session that joins this composition.
  * @param ctx - the plugin context, standing for every joined agent.
- * @param config - the composition entry, which the settings section layers over.
+ * @param config - fallback routes used when no Host settings owner is mounted.
  */
 export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      // Routes are read at each phase boundary, so a committed change needs no
-      // re-registration — it applies at the next transition.
-      onChange: () => {},
-    })
+    current = () => {
+      const descriptor = settingsCtx.settings.describe()
+        .find(candidate => candidate.ns === PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE)
+      return descriptor === undefined ? config : descriptor.value as Config
+    }
+    settingsCtx.effect(() => () => { current = () => config }, 'plan-model-switch: settings source')
   })
 
   // One ref per agent, installed into the agent's own scope on first sight:

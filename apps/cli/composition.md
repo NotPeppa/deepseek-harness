@@ -44,6 +44,8 @@ flowchart LR
   cfg --> plugin_dsh_base_llm_retry
   plugin_dsh_base_settings["settings<br/>@deepseek-ai/dsh-settings-file"]
   cfg --> plugin_dsh_base_settings
+  plugin_dsh_base_plan_model_switch_settings["plan-model-switch-settings<br/>@deepseek-ai/dsh-plan-model-switch/settings"]
+  cfg --> plugin_dsh_base_plan_model_switch_settings
   plugin_dsh_base_credentials["credentials<br/>@deepseek-ai/dsh-credentials-local"]
   cfg --> plugin_dsh_base_credentials
   plugin_dsh_base_llm_pi_ai["llm-pi-ai<br/>@deepseek-ai/dsh-llm-pi-ai"]
@@ -200,6 +202,7 @@ flowchart LR
 | `jobs` | `@deepseek-ai/dsh-jobs-local` |
 | `llm-retry` | `@deepseek-ai/dsh-llm-retry` |
 | `settings` | `@deepseek-ai/dsh-settings-file` |
+| `plan-model-switch-settings` | `@deepseek-ai/dsh-plan-model-switch/settings` |
 | `credentials` | `@deepseek-ai/dsh-credentials-local` |
 | `llm-pi-ai` | `@deepseek-ai/dsh-llm-pi-ai` |
 | `session-persistence-jsonl` | `@deepseek-ai/dsh-session-persistence-jsonl` |

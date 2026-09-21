@@ -25,11 +25,11 @@ Use the **Plugins** settings section to configure the plugins exposed by the cur
 <a id="use-this-package"></a>
 ## Use this package
 
-Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the host-plane plugins this deployment composes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent model selection (`subagent-model-selection`), and the DeepSeek search provider (`web-search-deepseek`).
+Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the plugins this deployment exposes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent model selection (`subagent-model-selection`), the DeepSeek and TinyFish search providers, and plan/execution model routing (`plan-model-switch`).
 
 ### What appears here
 
-The tab reads which settings namespaces the Host serves and dispatches one slot key per namespace, so what renders is the intersection of two ledgers: the namespaces a live Host plugin registered, and the cards registered under those keys. A served namespace no card claims renders nothing, and a card whose namespace this deployment does not serve is never dispatched. The empty line waits for the Host's first answer, so an unanswered read never reads as "this deployment configures no plugin".
+The tab reads which settings namespaces the Host serves and dispatches one slot key per namespace, so what renders is the intersection of two ledgers: the namespaces a live Host plugin registered, and the cards registered under those keys. A served namespace no card claims renders nothing, and a card whose namespace this deployment does not serve is never dispatched. Base-backed profiles register `plan-model-switch` on the Host for its full lifetime, so that card remains available before the first plan/execute session and after the last one closes. The empty line waits for the Host's first answer, so an unanswered read never reads as "this deployment configures no plugin".
 
 ### Editing and saving
 
@@ -92,7 +92,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define which plugins appear and how fresh the list is; they are current package constraints.
 
-- **Only host-plane plugins appear** — a plugin an agent preset mounts carries its configuration inline in that preset's `agent.cordis.yml` and cannot register a settings namespace at all, so this section lists nothing for it. Editing those values remains the preset editor's job.
+- **Agent-plane settings need a Host owner** — a plugin mounted only by an agent preset cannot keep a settings namespace available without an active session. Plan/execution routing has a dedicated Host companion; another agent-plane plugin without one remains the preset editor's responsibility.
 - **A card still needs a browser bundle** — the browser half must be a `dsh.client` package built in the client module system's lazy-CJS factory format, and the `clientBundle` preset that emits it lives in `../../../packages/client/tsdown.client.ts` rather than a published package, so a plugin outside this repository has to reproduce that build itself.
 - **The served namespaces re-read on two signals only** — the wire announces settings-document commits and connection resets, not registrations, so a namespace whose owner registers after the tab's read joins the list on the next document commit or reconnect.
 - **The shell card follows the composed executor** — the POSIX and PowerShell executor families share the `bash` namespace because a host composes exactly one of them, so the served schema differs by platform (PowerShell adds `pwshPath`) even though the card edits the same two fields on both.

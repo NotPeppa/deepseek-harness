@@ -341,6 +341,7 @@
       "@deepseek-ai/dsh-persona": ["./packages/preset/persona/src"],
       "@deepseek-ai/dsh-plan-mode": ["./packages/plan/plan-mode/src"],
       "@deepseek-ai/dsh-plan-model-switch": ["./packages/plan/plan-model-switch/src"],
+      "@deepseek-ai/dsh-plan-model-switch/settings": ["./packages/plan/plan-model-switch/src/settings.ts"],
       "@deepseek-ai/dsh-plan-mode/invariant": ["./packages/plan/plan-mode/src/invariant.ts"],
       "@deepseek-ai/dsh-plugin-package-inventory-deepseek": ["./packages/llm/plugin-package-inventory-deepseek/src"],
       "@deepseek-ai/dsh-pwsh-sandbox": ["./packages/shell/pwsh-sandbox/src"],

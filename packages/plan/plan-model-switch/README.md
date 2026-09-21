@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `dsh-plan-model-switch`, a session plans on one model and executes on another: entering plan mode routes the agent to the planning model, approving the plan routes it to the execution model, and the exploration that produced the plan is folded into one summary so the execution phase carries the deliverable rather than the whole transcript. Choose it when planning and execution have different cost or capability profiles. Nothing happens until both a provider and a model are configured for a phase, so an unconfigured deployment runs exactly as it did before. The `plan-execute` agent preset composes this package; the shipped `standard` preset does not.
+Use `dsh-plan-model-switch` to plan on one model and execute on another. Entering plan mode selects the planning model; approval selects the execution model and folds the exploration into one summary so execution carries the deliverable instead of the full transcript. Choose it when the phases need different cost or capability profiles. A phase changes only when both its provider and model are configured. The `plan-execute` preset mounts the runtime; base-backed profiles keep its settings visible before any session, while `standard` never applies them.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ With `dsh-plan-model-switch`, a session plans on one model and executes on anoth
 <a id="use-this-package"></a>
 ## Use this package
 
-Pick the **Plan / execute mode** agent preset when starting a session, then choose the two models in **Settings › Plugins › Plugin configuration › Plan and execution models**. Both are dropdowns over the deployment's configured models — the same catalog the Models page reads — with a reasoning-effort choice for models that advertise one. From there the cycle is the ordinary one: `/plan` to enter plan mode, review the plan the agent presents through `exit_plan_mode`, and approve it. The approval is where the model changes.
+Choose the two models at any time in **Settings › Plugins › Plugin configuration › Plan and execution models**, then pick the **Plan / execute mode** agent preset when starting a session. The settings card remains visible without an active plan/execute session. Both model fields are dropdowns over the deployment's configured models — the same catalog the Models page reads — with a reasoning-effort choice for models that advertise one. From there the cycle is the ordinary one: `/plan` to enter plan mode, review the plan the agent presents through `exit_plan_mode`, and approve it. The approval is where the model changes.
 
 ### When to choose it
 
@@ -33,7 +33,7 @@ Choose phase routing when the two phases genuinely want different models — a s
 
 ### Minimal configuration
 
-Mount the row inside a composition that already has plan mode. Routes are left to the settings section rather than inlined, because which models a deployment holds is not a fact a shipped composition knows.
+Base-backed profiles mount `@deepseek-ai/dsh-plan-model-switch/settings` on the Host, which owns the durable settings namespace. Mount the runtime row inside an agent composition that already has plan mode. Routes are left to the settings section rather than inlined, because which models a deployment holds is not a fact a shipped composition knows.
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'
@@ -41,8 +41,6 @@ Mount the row inside a composition that already has plan mode. Routes are left t
     section: |
       You are in plan mode. …
 - name: '@deepseek-ai/dsh-plan-model-switch'
-  config:
-    foldPlanning: true
 ```
 
 | Field | Default | Meaning |
@@ -86,7 +84,8 @@ This section explains the design decisions behind the package; the observable be
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Plugin entry: config schema, settings section, the phase boundary, and route installation |
+| [`src/index.ts`](src/index.ts) | Agent runtime: config schema, phase boundary, settings overlay, and route installation |
+| [`src/settings.ts`](src/settings.ts) | Host companion: keeps the settings namespace registered independently of active sessions |
 | [`src/routes.ts`](src/routes.ts) | The flat per-phase route shape and its projection into a `ModelSelection` |
 | [`src/fold.ts`](src/fold.ts) | Span selection: the deliverable node, and the balanced planning span before it |
 | — | No runtime invariant companion is published; this package exposes no independent event sequence or mutable data relation beyond contracts enforced at its owning seams. |

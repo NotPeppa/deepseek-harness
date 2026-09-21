@@ -25,11 +25,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署所组装的宿主平面插件。卡片依次为 shell 执行器（`bash`）、agent loop（智能体循环）的工具调用并行度（`agent-loop`）、subagent 模型选择（`subagent-model-selection`）以及 DeepSeek 搜索提供方（`web-search-deepseek`）。
+打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署公开的插件。卡片依次为 shell 执行器（`bash`）、agent loop（智能体循环）的工具调用并行度（`agent-loop`）、subagent 模型选择（`subagent-model-selection`）、DeepSeek 与 TinyFish 搜索提供方，以及规划/执行模型路由（`plan-model-switch`）。
 
 ### 这里会出现什么
 
-标签页读取 Host 服务了哪些 settings 命名空间，并为每个命名空间派发一个 slot 键，因此渲染出来的是两份账本的交集：存活 Host 插件注册的命名空间，以及注册在这些键上的卡片。被服务却无人认领的命名空间什么都不渲染；命名空间未被本部署服务的卡片根本不会被派发。空态文案要等 Host 的第一次答复，因此一次尚未答复的读取绝不会被读成「本部署没有可配置的插件」。
+标签页读取 Host 服务了哪些 settings 命名空间，并为每个命名空间派发一个 slot 键，因此渲染出来的是两份账本的交集：存活 Host 插件注册的命名空间，以及注册在这些键上的卡片。被服务却无人认领的命名空间什么都不渲染；命名空间未被本部署服务的卡片根本不会被派发。基于 base 的 profile 会在 Host 的整个生命周期中注册 `plan-model-switch`，因此这张卡在首个计划/执行会话启动前以及最后一个会话关闭后仍然可用。空态文案要等 Host 的第一次答复，因此一次尚未答复的读取绝不会被读成「本部署没有可配置的插件」。
 
 ### 编辑与保存
 
@@ -92,7 +92,7 @@ subagent 卡会同时暂存其权限开关与精确模型复选框。启用时�
 
 这些限制定义哪些插件会出现、列表有多新鲜；它们是当前包约束。
 
-- **只有宿主平面的插件会出现**：由 agent preset 挂载的插件把配置内联在该 preset 的 `agent.cordis.yml` 中，且根本无法注册 settings 命名空间，因此本分区不会列出它。编辑那些值仍是 preset 编辑器的职责。
+- **Agent 平面的设置需要 Host 所有者**：仅由 agent preset 挂载的插件无法在没有活跃会话时持续提供 settings 命名空间。规划/执行路由带有专用 Host 伴生插件；其他没有伴生插件的 Agent 平面插件仍由 preset 编辑器负责。
 - **卡片仍然需要一份浏览器 bundle**：浏览器半侧必须是按客户端模块系统的 lazy-CJS factory 格式构建的 `dsh.client` 包，而产出它的 `clientBundle` 预设位于 `../../../packages/client/tsdown.client.ts`，并非已发布的包，因此本仓库之外的插件得自行复刻该构建。
 - **被服务的命名空间只在两种信号上重读**：协议通告的是 settings 文档提交与连接重置，而非注册行为，因此在标签页读取之后才被其拥有方注册的命名空间，要等下一次文档提交或重连才会加入列表。
 - **shell 卡片跟随被组装的执行器**：POSIX 与 PowerShell 两个执行器家族共用 `bash` 命名空间，因为一个宿主只组装其中之一，所以被服务的 schema 随平台不同（PowerShell 多出 `pwshPath`），尽管卡片在两者下编辑的都是同样两个字段。

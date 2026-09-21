@@ -146,8 +146,6 @@
     # behaves like `standard` until they are filled in.
     - id: plan-model-switch
       name: '@deepseek-ai/dsh-plan-model-switch'
-      config:
-        foldPlanning: true
 
 # ── compaction ──────────────────────────────────────────────────────────────
 
