@@ -1,5 +1,5 @@
 ---
-description: "Subagent conversation catalog, continuation routing UI, and '@' reference source for the dsh web client."
+description: "Subagent conversation catalog (session header and right-Sidebar tab), continuation routing UI, and '@' reference source for the dsh web client."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to browse every subagent conversation beneath a parent session, open any descendant, and see whether it is running together with its token usage and active-turn duration. Completed one-shot conversations open as read-only execution records. Continuable conversations accept follow-up prompts in submission order while they run and provide Stop independently. The ordinary session sidebar omits subagent conversations, so the parent header catalog is their navigation entry point. The separate `@` source inserts a running child's label into a user message without resolving it into a continuation address.
+Use this package to browse every subagent conversation beneath a parent session, open any descendant, and see whether it is running together with its token usage and active-turn duration. Completed one-shot conversations open as read-only execution records. Continuable conversations accept follow-up prompts in submission order while they run and provide Stop independently. The ordinary session sidebar omits them, so the parent header catalog and the right Sidebar's **Subagents** tab are their navigation entry points. The separate `@` source inserts a running child's label into a user message without resolving it into a continuation address.
 
 ## Table of Contents
 
@@ -26,6 +26,10 @@ Use this package to browse every subagent conversation beneath a parent session,
 ## Use this package
 
 The session header keeps the current session title as the lineage breadcrumb and, when the session has subagent descendants, appends a `/` count trigger before the header's action row; the trigger opens the descendant catalog, counts the complete subagent-only lineage, stops at ordinary forks, and shows ongoing activity when any counted descendant is running. Select any depth to open that child's conversation with its exact `{parentSessionId, childSessionId, mode}` address.
+
+### Browsing the tree from the Sidebar
+
+With the right Sidebar composed, the same tree is also a Sidebar tab, opened from the Sidebar's guide page. It draws the header dropdown's rows in a panel that stays open, keeps every branch it shows reported to the runtime for as long as it is mounted, and says so on a session that has delegated to nothing.
 
 ### Browsing the tree
 
@@ -51,7 +55,7 @@ The catalog and composer behavior are specified by the [Web subagent conversatio
 
 ### Catalog derivation
 
-The header lineage renderer reads `subagentsByParent` and session summaries through the standard `useSessions` hook. The compact tree remains direct-catalog authoritative: each healthy row's `hasChildren` hint determines disclosure before interaction, a catalog level reserves the disclosure column only when at least one healthy row is a branch, and expanding a branch immediately reserves one disabled loading row per known direct descendant before lazily replacing them with that child's authoritative catalog. Every visible branch is reported to the runtime so membership frames cause a debounced refresh only where the tree is being consumed.
+The header lineage renderer and the Sidebar tab body (`SubagentsBody`) both draw `CatalogRows` from `subagentsByParent` and session summaries through the standard `useSessions` hook; the tab adds the type registration (`subagentsDefinition`) and chip title (`SubagentsTitle`) under `sidebarRightTabs`, which it takes through `ctx.inject` so a composition without the Sidebar keeps the header dropdown alone. The compact tree remains direct-catalog authoritative: each healthy row's `hasChildren` hint determines disclosure before interaction, a catalog level reserves the disclosure column only when at least one healthy row is a branch, and expanding a branch immediately reserves one disabled loading row per known direct descendant before lazily replacing them with that child's authoritative catalog. Every visible branch is reported to the runtime so membership frames cause a debounced refresh only where the tree is being consumed.
 
 ### Duration and tokens
 

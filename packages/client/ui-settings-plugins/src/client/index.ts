@@ -110,7 +110,13 @@ export function apply(ctx: ClientContext): void {
     'ui-settings-plugins: subagent adapter invalidations',
   )
   ctx.effect(
-    () => ctx.remote.$on('settings/document-updated', () => { subagentModelSelection.refreshCatalog() }),
+    () => ctx.remote.$on('settings/document-updated', () => {
+      subagentModelSelection.refreshCatalog()
+      // A model-level edit (efforts, context window) changes no adapter route,
+      // so `llm/adapters-updated` never fires for it: without this the card
+      // keeps serving the catalog it read when the dialog opened.
+      planModelSwitch.refreshCatalog()
+    }),
     'ui-settings-plugins: subagent settings invalidations',
   )
   ctx.effect(

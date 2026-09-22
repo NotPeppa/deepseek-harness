@@ -1,5 +1,5 @@
 ---
-description: "Web 后台任务界面：列出本会话可见任务的会话头部动作；供后台任务体验的用户与维护者阅读。"
+description: "Web 后台任务界面：列出本会话可见任务的会话头部动作与右侧边栏页签；供后台任务体验的用户与维护者阅读。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包渲染 Web GUI 的后台任务界面：一个会话头部动作，打开后以弹层列出本会话可见的任务。它经运行时提供的 `jobsBySession` 镜像读取宿主计算的注册表状态，自身不发任何 RPC。触发器只在会话至少有一个任务时出现，角标计数运行中与停止中的任务；终态行保持可见并弱化，直到注册表把它们丢弃。模型对同一批任务的视角属于 `dsh-tool-jobs`；本包是给人类看的只读投影。
+本包渲染 Web GUI 的后台任务界面：一个会话头部动作，其弹层列出本会话可见的任务；以及一个右侧边栏页签，把同一批行放进常驻面板。它经运行时提供的 `jobsBySession` 镜像读取宿主计算的注册表状态，自身不发任何 RPC。触发器只在会话至少有一个任务时出现，角标计数运行中与停止中的任务；终态行保持可见并弱化，直到注册表把它们丢弃。模型对同一批任务的视角属于 `dsh-tool-jobs`；本包是给人类看的只读投影。
 
 ## 目录
 
@@ -27,6 +27,8 @@ kind: "package-reference"
 
 与运行时一起挂载本插件；只要会话至少有一个任务，任务动作就会出现在会话头部。点击打开弹层：活跃行在前按开始时间升序，随后终态行按结束时间降序，每行显示生产者 kind、标签、状态，以及一个活跃时每秒跳动、完成后冻结的已耗时。
 
+组合了右侧边栏时，同一份列表也是一个侧边栏页签：在侧边栏的引导页选 **后台任务** 打开，工作进行时行一直留在屏幕上，不必按住弹层。页签也是唯一在空会话上仍渲染的界面，此时它说明本会话还没有后台任务。
+
 ### 关闭与边界
 
 Escape 关闭列表并把焦点交还触发器，在其外部按下指针同理。列表展示的是「一个会话通过协议视图能看到什么」，因此别的会话拥有的任务在这里永不出现；进程重启会清空列表，而 transcript（文本记录）里启动这些任务的 `run_in_background` 卡片仍在。
@@ -39,7 +41,7 @@ Escape 关闭列表并把焦点交还触发器，在其外部按下指针同理�
 <details>
 <summary>实现细节——点击展开</summary>
 
-本包向 `conversation.session.header.actions` 贡献一个条目（`JobListAction`），数据完全来自会话控制器绑定从 `session/jobs` 帧折叠出的 `jobsBySession` 列表镜像——不发 RPC，除弹层开合外不持有任何状态。角标计数 `running` 加 `stopping`，为零时省略。行序为活跃行在前按 `startedAt` 升序、终态行按 `finishedAt` 降序，毫秒并列按启动顺序打破；缺少 `finishedAt` 的终态行读作零而不是负数，超过一小时的耗时停留在小时单位。终态行保持可见，因为失败任务的 `detail` 是其失败唯一可读之处。行为由 [Web 后台任务展示 Agent Note](../../../.agents/notes/implemented/feature/2026-08-08-web-background-job-display.zh.md) 规定。
+本包向 `conversation.session.header.actions` 贡献一个条目（`JobListAction`）；在组合了 `sidebarRightTabs` 时，再贡献一个右侧边栏页签类型（`jobsDefinition`）及其类型 id 下的主体与页签标题（`JobsBody`、`JobsTitle`）。两个界面画的都是 `JobRows`，因此排序、时长与状态措辞只有一处归属。数据完全来自会话控制器绑定从 `session/jobs` 帧折叠出的 `jobsBySession` 列表镜像——不发 RPC，除弹层开合外不持有任何状态。角标计数 `running` 加 `stopping`，为零时省略。行序为活跃行在前按 `startedAt` 升序、终态行按 `finishedAt` 降序，毫秒并列按启动顺序打破；缺少 `finishedAt` 的终态行读作零而不是负数，超过一小时的耗时停留在小时单位。终态行保持可见，因为失败任务的 `detail` 是其失败唯一可读之处。行为由 [Web 后台任务展示 Agent Note](../../../.agents/notes/implemented/feature/2026-08-08-web-background-job-display.zh.md) 规定。
 
 </details>
 

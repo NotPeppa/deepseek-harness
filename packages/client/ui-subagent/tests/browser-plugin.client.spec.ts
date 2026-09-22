@@ -17,6 +17,7 @@ import {
   SubagentReadOnlyComposer, type SubagentReadOnlyMatch,
 } from '../src/client/SubagentReadOnlyComposer.tsx'
 import { apply, inject } from '../src/client/index.ts'
+import { SUBAGENTS_ID } from '../src/client/subagents-definition.tsx'
 
 function summary(partial: Partial<SessionSummary> & { id: SessionId }): SessionSummary {
   return {
@@ -61,21 +62,33 @@ async function provideSlotFaces(ctx: Context): Promise<void> {
     children: {
       'conversation.session.header.lineage': { kind: 'single', scope: 'session' },
       'conversation.composer': { kind: 'chain', scope: 'session' },
+      'sidebar.right.pane.tab': { kind: 'keyed', scope: 'session' },
+      'sidebar.right.pane.tab.title': { kind: 'keyed', scope: 'session' },
     },
   } as never, () => null)
 }
 
 /** Boot the plugin over fake sessions and slot faces. */
-async function fullBench(sessions: SessionSummary[]) {
+async function fullBench(sessions: SessionSummary[], sidebar = true) {
   const ctx = new Context()
   const face = sessionsWith(sessions)
+  const registered: string[] = []
   ctx.provide('sessions', face)
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  if (sidebar) {
+    ctx.provide('sidebarRightTabs', {
+      register: (definition: { id: string }) => {
+        registered.push(definition.id)
+        return () => { registered.splice(registered.indexOf(definition.id), 1) }
+      },
+    } as never)
+  }
   await provideSlotFaces(ctx)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
-  await ctx.plugin({ inject: [...inject], apply }).await()
-  return { face, ctx }
+  const fiber = ctx.plugin({ inject: [...inject], apply })
+  await fiber.await()
+  return { face, ctx, fiber, registered }
 }
 
 const FAMILY: SessionSummary[] = [
@@ -89,6 +102,25 @@ const FAMILY: SessionSummary[] = [
 ]
 
 describe('apply', () => {
+  it('registers the Sidebar tab type, body, and title, and releases them with the fiber', async () => {
+    const { ctx, fiber, registered } = await fullBench(FAMILY)
+    expect(registered).toEqual([SUBAGENTS_ID])
+    const keys = (name: 'sidebar.right.pane.tab' | 'sidebar.right.pane.tab.title'): unknown[] =>
+      ctx.slots.entries(name).map(entry => entry.options.key)
+    expect(keys('sidebar.right.pane.tab')).toContain(SUBAGENTS_ID)
+    expect(keys('sidebar.right.pane.tab.title')).toContain(SUBAGENTS_ID)
+
+    await fiber.dispose()
+    expect(registered).toEqual([])
+    expect(keys('sidebar.right.pane.tab')).not.toContain(SUBAGENTS_ID)
+  })
+
+  it('keeps the conversation seats when no right Sidebar is composed', async () => {
+    const { ctx } = await fullBench(FAMILY, false)
+    expect(ctx.slots.entries('conversation.session.header.lineage')).toHaveLength(1)
+    expect(ctx.slots.entries('sidebar.right.pane.tab')).toHaveLength(0)
+  })
+
   it('declares the services it binds', () => {
     expect(inject).toEqual(['sessions', 'slots', 'locale'])
   })

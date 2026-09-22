@@ -138,7 +138,7 @@ export function ReasoningEffortsField(props: ReasoningEffortsFieldProps): ReactN
     else if (next === 'none') props.onChange(false)
     // A seeded map is a map the adapter accepts; an empty one it refuses, and
     // an empty list of checkboxes reads as a broken control.
-    else props.onChange(Object.keys(efforts).length > 0 ? efforts : { off: null, high: '' })
+    else props.onChange(Object.keys(efforts).length > 0 ? efforts : { off: null, high: 'high' })
   }
 
   return (
@@ -177,8 +177,10 @@ export function ReasoningEffortsField(props: ReasoningEffortsFieldProps): ReactN
                         for (const kept of THINKING_LEVELS) {
                           if (kept === level) {
                             // `off` is the one level whose wire value may stay
-                            // empty, so it is the one that starts as null.
-                            if (!declared) next[kept] = kept === 'off' ? null : ''
+                            // empty, so it is the one that starts as null; every
+                            // other starts at its own name, the spelling nearly
+                            // every provider uses, so a fresh box is savable.
+                            if (!declared) next[kept] = kept === 'off' ? null : kept
                           } else if (Object.hasOwn(efforts, kept)) {
                             next[kept] = efforts[kept] ?? null
                           }

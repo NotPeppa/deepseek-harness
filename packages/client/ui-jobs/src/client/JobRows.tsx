@@ -1,0 +1,147 @@
+/**
+ * The job rows themselves, shared by the header popover and the Sidebar tab.
+ *
+ * Both surfaces draw the same list from the same `jobsBySession` mirror; only
+ * the container differs, so the `<li>` and its ordering live here and each
+ * surface owns its own `<ul>` chrome.
+ */
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import type { SessionJob as JobView } from '@deepseek-ai/dsh-api-session-controller/types'
+import { StateDot, type StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type { NS } from './locales.ts'
+import css from './JobListAction.module.css'
+
+/** A job the registry still holds open, and whose duration therefore ticks. */
+export function isLive(job: JobView): boolean {
+  return job.status === 'running' || job.status === 'stopping'
+}
+
+/** Closed-union exhaustiveness fence for the wire status set. */
+/* v8 ignore next 3 -- closed-union backstop; only reached if a status is forged */
+function assertNever(value: never): never {
+  throw new Error(`unhandled job status: ${JSON.stringify(value)}`)
+}
+
+/**
+ * Status marker semantics. `stopping` and `killed` share the attention color:
+ * both mean the work ended (or is ending) on request rather than on its own.
+ */
+function dotState(status: JobView['status']): StateDotState {
+  switch (status) {
+    case 'running': return 'ongoing'
+    case 'stopping': return 'warning'
+    case 'completed': return 'done'
+    case 'killed': return 'warning'
+    case 'failed': return 'error'
+    /* v8 ignore next -- closed wire status union */
+    default: return assertNever(status)
+  }
+}
+
+/** Human status word for the row and its accessible name. */
+function statusLabel(status: JobView['status'], t: TranslateNS<typeof NS>): string {
+  switch (status) {
+    case 'running': return t('status.running')
+    case 'stopping': return t('status.stopping')
+    case 'completed': return t('status.completed')
+    case 'killed': return t('status.killed')
+    case 'failed': return t('status.failed')
+    /* v8 ignore next -- closed wire status union */
+    default: return assertNever(status)
+  }
+}
+
+/**
+ * Elapsed time in at most two adjacent units. A background job that outlives
+ * an hour is already exceptional, so hours is the widest unit — beyond that the
+ * figure stays in hours rather than growing a day/month vocabulary no producer
+ * currently reaches.
+ * @param elapsedMs - the span to render.
+ * @param t - namespace-bound translate.
+ * @returns the display string.
+ */
+export function formatDuration(elapsedMs: number, t: TranslateNS<typeof NS>): string {
+  const total = Math.max(0, Math.floor(elapsedMs / 1_000))
+  const seconds = total % 60
+  const minutes = Math.floor(total / 60) % 60
+  const hours = Math.floor(total / 3_600)
+  if (hours > 0) return t('duration.hours', { hours, minutes })
+  if (minutes > 0) return t('duration.minutes', { minutes, seconds })
+  return t('duration.seconds', { seconds })
+}
+
+/**
+ * Live rows first in start order, then settled rows newest-first. Two jobs
+ * that settled in the same millisecond fall back to start order, so the sort
+ * never depends on the host's map iteration.
+ * @param jobs - the session's jobs as the mirror holds them.
+ * @returns a new array in display order.
+ */
+export function ordered(jobs: readonly JobView[]): JobView[] {
+  return [...jobs].sort((left, right) => {
+    const liveLeft = isLive(left)
+    if (liveLeft !== isLive(right)) return liveLeft ? -1 : 1
+    if (liveLeft) return left.startedAt - right.startedAt
+    const finished = (right.finishedAt ?? right.startedAt) - (left.finishedAt ?? left.startedAt)
+    return finished !== 0 ? finished : left.startedAt - right.startedAt
+  })
+}
+
+/**
+ * A second-resolution clock that only runs while something is moving.
+ * @param ticking - whether any live row is on screen.
+ * @returns the current epoch millisecond reading.
+ */
+export function useJobClock(ticking: boolean): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!ticking) return
+    setNow(Date.now())
+    const timer = setInterval(() => { setNow(Date.now()) }, 1_000)
+    return () => { clearInterval(timer) }
+  }, [ticking])
+  return now
+}
+
+/** What one list of job rows draws from. */
+export interface JobRowsProps {
+  jobs: readonly JobView[]
+  /** Clock reading a live row measures against. */
+  now: number
+  t: TranslateNS<typeof NS>
+}
+
+/**
+ * The session's jobs as `<li>` rows, in display order.
+ * @param props - the jobs, the clock, and the copy.
+ * @returns one row per job.
+ */
+export function JobRows({ jobs, now, t }: JobRowsProps): ReactNode {
+  const rows = useMemo(() => ordered(jobs), [jobs])
+  return (
+    <>
+      {rows.map((job) => {
+        const live = isLive(job)
+        const elapsed = live ? now - job.startedAt : (job.finishedAt ?? job.startedAt) - job.startedAt
+        const duration = formatDuration(elapsed, t)
+        const status = statusLabel(job.status, t)
+        return (
+          <li key={job.id} className={live ? css.row : `${css.row} ${css.rowSettled}`}>
+            <StateDot state={dotState(job.status)} className={css.rowDot} />
+            <span className={css.kind}>{job.kind}</span>
+            <span className={css.label} title={job.label}>{job.label}</span>
+            <span className={css.status} title={job.detail ?? status}>{job.detail ?? status}</span>
+            <span
+              className={css.duration}
+              title={t(live ? 'duration.title.live' : 'duration.title.done', { duration })}
+            >
+              {duration}
+            </span>
+          </li>
+        )
+      })}
+    </>
+  )
+}

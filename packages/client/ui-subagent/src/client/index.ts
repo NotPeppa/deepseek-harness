@@ -7,9 +7,13 @@ import { SubagentHeaderLineage, type SubagentCatalogInjected } from './SubagentH
 import {
   SubagentReadOnlyComposer, type SubagentReadOnlyMatch,
 } from './SubagentReadOnlyComposer.tsx'
+import { SUBAGENTS_ID, subagentsDefinition } from './subagents-definition.tsx'
+import { SubagentsBody } from './SubagentsBody.tsx'
+import { SubagentsTitle } from './SubagentsTitle.tsx'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import { en, NS, zh, type SubagentKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -25,6 +29,8 @@ export type {
 export type {
   SubagentReadOnlyComposerProps, SubagentReadOnlyMatch,
 } from './SubagentReadOnlyComposer.tsx'
+export type { SubagentsBodyProps } from './SubagentsBody.tsx'
+export { SUBAGENTS_ID, SUBAGENTS_KIND, subagentsDefinition } from './subagents-definition.tsx'
 
 /** Required services for conversation slots and session navigation. */
 export const inject = ['sessions', 'slots', 'locale']
@@ -49,6 +55,7 @@ function selectReadOnlySubagent(owner: ComposerChainProps): SubagentReadOnlyMatc
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-subagent: dictionaries')
   const sessions = ctx.sessions
   const catalogActions = (_parentSessionId: SessionId): SubagentCatalogInjected => ({
@@ -70,6 +77,22 @@ export function apply(ctx: ClientContext): void {
       inject: catalogActions,
     }, SubagentHeaderLineage),
   )
+  // The Sidebar tab is optional composition: without the right Sidebar the
+  // header dropdown is still the whole surface.
+  ctx.inject(['sidebarRightTabs'], (sidebarCtx) => {
+    sidebarCtx.effect(
+      () => sidebarCtx.sidebarRightTabs.register(subagentsDefinition(t)),
+      'ui-subagent: subagents tab type',
+    )
+    sidebarCtx.effect(() => sidebarCtx.slots.inject('sidebar.right.pane.tab', () => sidebarCtx.slots.register(
+      { name: 'sidebar.right.pane.tab', key: SUBAGENTS_ID, locale: NS, inject: catalogActions },
+      SubagentsBody,
+    )), 'ui-subagent: subagents tab body')
+    sidebarCtx.effect(() => sidebarCtx.slots.inject('sidebar.right.pane.tab.title', () => sidebarCtx.slots.register(
+      { name: 'sidebar.right.pane.tab.title', key: SUBAGENTS_ID },
+      SubagentsTitle,
+    )), 'ui-subagent: subagents tab title')
+  })
   ctx.slots.inject(
     'conversation.composer',
     () => ctx.slots.register({

@@ -15,7 +15,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { installModelSelection } from '@deepseek-ai/dsh-agent'
+import { agentModelSelectionRef, installModelSelection } from '@deepseek-ai/dsh-agent'
 import type { Agent, ModelSelection, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-compaction'
 import { EXIT_PLAN_MODE } from '@deepseek-ai/dsh-plan-mode'
@@ -84,10 +84,12 @@ export function apply(ctx: Context, config: Config): void {
     settingsCtx.effect(() => () => { current = () => config }, 'plan-model-switch: settings source')
   })
 
-  // One ref per agent, installed into the agent's own scope on first sight:
-  // `installModelSelection` owns request routing, the `{{model}}` prompt
-  // variable, and the durable "[model changed: …]" notice, so this plugin only
-  // decides WHICH route each phase gets.
+  // The route is owned by ONE selection per agent — the Session Controller's,
+  // the ACP model control's, or (in a composition with neither) this plugin's.
+  // Installing a second one does not layer: both rewrite the same request
+  // config, the later listener wins, and the loser narrates a switch that never
+  // reached the provider. So the installed reference is reused when there is
+  // one, and only an unowned agent gets ours.
   const selections = new WeakMap<Agent, ModelSelectionRef>()
   const phases = new WeakMap<Session, PhaseState>()
 
@@ -168,12 +170,14 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   /**
-   * The agent's selection ref, installing it into the agent's own scope on
-   * first sight.
+   * The agent's selection ref: the one the deployment installed, or one of
+   * this plugin's own when nothing owns the route.
    * @param agent - the agent to route.
    * @returns the ref whose `current` decides that agent's next request.
    */
   function ensureSelection(agent: Agent): ModelSelectionRef {
+    const owned = agentModelSelectionRef(agent.ctx)
+    if (owned !== undefined) return owned
     const existing = selections.get(agent)
     if (existing !== undefined) return existing
     const ref: ModelSelectionRef = { current: undefined, assembled: undefined }

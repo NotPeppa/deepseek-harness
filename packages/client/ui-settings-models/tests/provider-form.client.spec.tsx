@@ -1678,7 +1678,11 @@ describe('custom provider reasoning levels', () => {
     const { mutate } = await openRow()
     fireEvent.change(screen.getByLabelText(`${en.modelReasoning} 1`), { target: { value: 'custom' } })
 
-    // A blank spelling on a thinking level is exactly what the adapter refuses.
+    // A seeded level carries its own name, so the fresh map saves as-is; a
+    // blank spelling on a thinking level is what the adapter refuses.
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningWire} high 1`).value).toBe('high')
+    expect(buttonNamed(en.apply).disabled).toBe(false)
+    fireEvent.change(screen.getByLabelText(`${en.reasoningWire} high 1`), { target: { value: ' ' } })
     expect(screen.getByText(`${en.model} 1: ${en.reasoningNeedsWire}`)).toBeTruthy()
     expect(buttonNamed(en.apply).disabled).toBe(true)
 

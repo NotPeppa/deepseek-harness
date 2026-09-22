@@ -157,6 +157,7 @@ These limits describe when phase routing does not behave as you might expect.
 - **The `{{model}}` prompt variable lags by one step at a handoff** — the prompt is assembled before plan mode commits its state, and no outside observer can see that commit any earlier. The request itself is routed correctly; only the persona line naming the model is one step behind.
 - **The fold needs an approved plan** — leaving with `/plan off` folds nothing, because an abandoned exploration is the only record of itself.
 - **The summary is written by the compaction engine's own route** — the shipped engine summarizes with the model the latest request used, so the fold costs one summarization call on whichever model that is.
+- **A forked child cannot take part** — `subagent_fork` copies the parent conversation, which is the cost the fold removes, and inherits the parent's route by design; the `plan-execute` preset therefore ships without it and delegates through `subagent`.
 - **Plan mode restrains through text, not enforcement** — this package does not change that; a deployment that needs the planning phase to be read-only configures sandbox mode and approval policy independently.
 
 <a id="dev-note"></a>

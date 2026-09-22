@@ -1,0 +1,26 @@
+/* The tree reuses the dropdown's row skin; this replaces its floating geometry
+   with the tab panel's own box. */
+.tree {
+  position: static;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.titleIcon {
+  flex: none;
+  margin-right: 4px;
+}

@@ -11,6 +11,7 @@ import { apply, inject } from '@deepseek-ai/dsh-client-ui-settings-plugins/clien
 import type {
   ConfigurablePluginsTabFace, PluginsSettingsSectionInjected,
 } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import { PlanModelSwitchCardController } from '../src/client/plan-model-switch-card-controller.ts'
 import { SubagentModelSelectionCardController } from '../src/client/subagent-model-selection-card-controller.ts'
 import { apply as hostApply } from '../src/index.ts'
 
@@ -209,6 +210,19 @@ describe('ui-settings-plugins apply', () => {
     expect(refresh).toHaveBeenCalledTimes(2)
     ctx.emit('connection/reset')
     expect(reset).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes the plan-phase catalog when a model edit changes no adapter route', async () => {
+    const refresh = vi.spyOn(PlanModelSwitchCardController.prototype, 'refreshCatalog')
+    const { ctx, slots, remote } = await bench(['plan-model-switch'])
+    declareRoot(slots)
+    await ctx.plugin({ inject: [...inject], apply }).await()
+    refresh.mockClear()
+
+    // Editing one model's reasoning efforts re-registers nothing, so the
+    // settings write is the only signal the new efforts exist.
+    remote.emit('settings/document-updated', ['llm-pi-ai', 1])
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 
   it('ignores a credential change for a reference no card watches', async () => {

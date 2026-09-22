@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的 subagent 对话目录、续接路由 UI 与 '@' 引用 source。"
+description: "dsh Web 客户端的 subagent 对话目录（会话页头与右侧边栏页签）、续接路由 UI 与 '@' 引用 source。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可浏览父会话下的每个 subagent 对话、打开任意后代，并查看其是否正在运行以及 token 用量和活跃轮次耗时。已完成的 one-shot 对话会作为只读执行记录打开。可继续对话在运行期间按提交顺序接收后续提示词，并独立提供 Stop。普通会话侧边栏会省略 subagent 对话，因此父会话页头目录是它们的导航入口。独立的 `@` source 会把运行中 child 的 label 插入用户消息，但不会把它解析成继续执行地址。
+使用本包可浏览父会话下的每个 subagent 对话、打开任意后代，并查看其是否正在运行以及 token 用量和活跃轮次耗时。已完成的 one-shot 对话会作为只读执行记录打开。可继续对话在运行期间按提交顺序接收后续提示词，并独立提供 Stop。普通会话侧边栏会省略它们，因此父会话页头目录与右侧边栏的 **子代理** 页签是它们的导航入口。独立的 `@` source 会把运行中 child 的 label 插入用户消息，但不会把它解析成继续执行地址。
 
 ## 目录
 
@@ -26,6 +26,10 @@ kind: "package-reference"
 ## 使用本包
 
 会话页头保留当前会话 title 作为谱系面包屑，并在会话存在 subagent 后代时，于页头操作行之前追加 `/` 数量触发器；触发器打开后代目录，统计仅含 subagent 的完整谱系、在普通 fork 处停止，并在任一计入统计的后代处于 `running` 时显示活动仍在进行。选择任意深度，即可用该子会话的确切 `{parentSessionId, childSessionId, mode}` 地址打开其对话。
+
+### 在侧边栏里浏览
+
+组合了右侧边栏时，同一棵树也是一个侧边栏页签，从侧边栏的引导页打开。它把页头下拉里的行画进常驻面板，在挂载期间持续向运行时上报它展示的每个分支，并在会话没有派发过 subagent 时如实说明。
 
 ### 浏览目录
 
@@ -51,7 +55,7 @@ kind: "package-reference"
 
 ### 目录派生
 
-页头谱系 renderer 通过标准 `useSessions` 钩子读取 `subagentsByParent` 与会话摘要。紧凑树仍以直接目录为权威依据：每个健康行的 `hasChildren` 提示在交互前决定是否显示展开控件；每层目录仅在其中至少一个健康行是分支时才预留展开列；展开分支时会立即为每个已知直接后代预留一行禁用的加载行，随后再用该 child 的权威目录懒加载结果替换。每个可见分支都会上报给运行时，使成员帧只在树正被消费的位置触发去抖动刷新。
+页头谱系 renderer 与侧边栏页签主体（`SubagentsBody`）都通过标准 `useSessions` 钩子，从 `subagentsByParent` 与会话摘要画出 `CatalogRows`；页签另外在 `sidebarRightTabs` 下注册类型（`subagentsDefinition`）与页签标题（`SubagentsTitle`），并经 `ctx.inject` 取用该服务，因此没有侧边栏的组合仍只保留页头下拉。紧凑树仍以直接目录为权威依据：每个健康行的 `hasChildren` 提示在交互前决定是否显示展开控件；每层目录仅在其中至少一个健康行是分支时才预留展开列；展开分支时会立即为每个已知直接后代预留一行禁用的加载行，随后再用该 child 的权威目录懒加载结果替换。每个可见分支都会上报给运行时，使成员帧只在树正被消费的位置触发去抖动刷新。
 
 ### 耗时与 token
 

@@ -13,6 +13,12 @@
 # deployment holds is not a fact a shipped composition can know. With neither
 # route configured this preset behaves exactly like `standard`.
 #
+# One row is deliberately missing compared to `standard`: `subagent_fork`. A
+# forked child copies the parent conversation, which is the cost the fold just
+# removed, and it cannot run on the execution model because fork inherits the
+# parent's route. Delegation here goes through `subagent`, whose children start
+# fresh and are told the plan.
+#
 # This file is an AGENT-PLANE composition. The roster mounts it ONCE under a
 # standing scope; every session naming it joins by scope parentage, so the
 # tools and prompt sections registered here cover each joined agent while a
@@ -37,7 +43,15 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    suffix: Your working directory is {{cwd}}.
+    # The delegation rule lives here rather than in the plan guidance: that
+    # section is only in the request while plan mode is active, and delegation
+    # happens after it is gone.
+    suffix: >-
+      Your working directory is {{cwd}}. Delegate with subagent: a child starts
+      fresh and does not read this conversation, so put the plan and everything
+      else it needs in its prompt. That is the point — the exploration behind
+      the plan was folded away, and a child that copied this conversation would
+      pay for it again on every one of its own requests.
     prefix: >-
       You are a coding agent powered by the {{model}} model.
 
@@ -209,12 +223,20 @@
         modelSelectionSettings: true
         backgroundMode: continuable
 
-    # Fork omits model selection so provider/model stay equal to the parent and
-    # the inherited history remains eligible for KV Cache reuse. This preset
-    # keeps fork continuable; parent and child inherit the same messaging tool,
-    # while the parent id and return guidance follow the inherited history.
+    # Fork is deliberately absent from THIS preset, unlike `standard`.
+    #
+    # A forked child copies the parent conversation, which is exactly the cost
+    # this preset exists to remove: the fold replaces the exploration behind an
+    # approved plan with one summary, and a fork taken before or after it hands
+    # a child a prefix it then pays for on every request it makes — multiplied
+    # by every worker. Fork also inherits the parent's route by design (it may
+    # not select a model), so a forked child cannot run on the execution model.
+    #
+    # A composition that wants both behaviours copies this preset and restores
+    # the row from `standard`.
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
       config:
         provider: fork
         toolName: subagent_fork

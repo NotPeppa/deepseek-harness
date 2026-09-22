@@ -13,6 +13,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
+import { useCatalogBranches } from './catalog-branches.ts'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import css from './SubagentHeaderLineage.module.css'
@@ -236,7 +237,14 @@ function CatalogLoadingRows({
 }
 
 /** Render one catalog level and recurse only through explicitly expanded rows. */
-function CatalogRows({
+/**
+ * The catalog's rows for one parent, recursing into every expanded branch.
+ * Shared by the header dropdown and the Sidebar tab, which differ only in the
+ * container they draw the tree into.
+ * @param props - the catalog to draw, the live mirrors, and the row actions.
+ * @returns the rows, plus the loading or error state when there are none.
+ */
+export function CatalogRows({
   parentSessionId, currentSessionId, catalog, catalogs, summaries, expanded, level, now,
   openChild, refresh, toggleBranch, closeCatalog, t,
 }: CatalogRowsProps & { t: TranslateNS<typeof NS> }) {
@@ -491,15 +499,12 @@ function CatalogDropdown({
   const [open, setOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState<CSSProperties>()
   const [now, setNow] = useState(() => Date.now())
-  const [expanded, setExpanded] = useState<ReadonlySet<SessionId>>(() => new Set())
+  const { expanded, observe, toggleBranch, closeAll } = useCatalogBranches(catalogs, setCatalogOpen)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const hoverOpenTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const observedCatalogs = useRef(new Set<SessionId>())
-  const setCatalogOpenRef = useRef(setCatalogOpen)
-  setCatalogOpenRef.current = setCatalogOpen
   const currentEntry = currentSessionId === undefined
     ? undefined
     : catalog?.entries.find(entry => entry.kind === 'child' && entry.id === currentSessionId)
@@ -529,20 +534,6 @@ function CatalogDropdown({
     }
     : catalog
 
-  const observeCatalog = (parentSessionId: SessionId, next: boolean): void => {
-    if (next) observedCatalogs.current.add(parentSessionId)
-    else observedCatalogs.current.delete(parentSessionId)
-    setCatalogOpen(parentSessionId, next)
-  }
-
-  const closeAllCatalogs = (): void => {
-    for (const parentSessionId of observedCatalogs.current) {
-      setCatalogOpen(parentSessionId, false)
-    }
-    observedCatalogs.current.clear()
-    setExpanded(new Set())
-  }
-
   const cancelHoverClose = (): void => {
     if (hoverCloseTimer.current === undefined) return
     clearTimeout(hoverCloseTimer.current)
@@ -565,12 +556,12 @@ function CatalogDropdown({
       setOpen(true)
       setMenuPosition(catalogMenuPosition(trigger))
       setNow(Date.now())
-      observeCatalog(rootSessionId, true)
+      observe(rootSessionId, true)
     }
     else {
       setOpen(false)
       setMenuPosition(undefined)
-      closeAllCatalogs()
+      closeAll()
     }
     if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
   }
@@ -592,30 +583,6 @@ function CatalogDropdown({
       hoverCloseTimer.current = undefined
       changeOpen(false)
     }, 120)
-  }
-
-  const closeBranch = (root: SessionId): void => {
-    const closing = new Set<SessionId>()
-    const visit = (parentSessionId: SessionId): void => {
-      if (closing.has(parentSessionId) || !expanded.has(parentSessionId)) return
-      closing.add(parentSessionId)
-      const branch = catalogs[parentSessionId]
-      for (const entry of branch?.entries ?? []) {
-        if (entry.kind === 'child') visit(entry.id)
-      }
-    }
-    visit(root)
-    for (const parentSessionId of closing) observeCatalog(parentSessionId, false)
-    setExpanded(current => new Set([...current].filter(id => !closing.has(id))))
-  }
-
-  const toggleBranch = (childSessionId: SessionId): void => {
-    if (expanded.has(childSessionId)) {
-      closeBranch(childSessionId)
-      return
-    }
-    setExpanded(current => new Set(current).add(childSessionId))
-    observeCatalog(childSessionId, true)
   }
 
   useEffect(() => {
@@ -655,13 +622,11 @@ function CatalogDropdown({
     return () => { clearInterval(timer) }
   }, [open, descendants.runningCount])
 
+  // The observed catalogs are released by the shared branch state; only the
+  // hover timers are this component's to cancel.
   useEffect(() => () => {
     cancelHoverOpen()
     cancelHoverClose()
-    for (const parentSessionId of observedCatalogs.current) {
-      setCatalogOpenRef.current(parentSessionId, false)
-    }
-    observedCatalogs.current.clear()
   }, [])
 
   // Visibility needs evidence of children (entries, summary-known descendants,
@@ -679,7 +644,7 @@ function CatalogDropdown({
     cancelHoverClose()
     if (!open) return
     setOpen(false)
-    closeAllCatalogs()
+    closeAll()
   }, [visible, open])
 
   if (!visible) return null

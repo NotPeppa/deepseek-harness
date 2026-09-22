@@ -73,7 +73,34 @@ function modelSwitchNotice(previous: ModelSelection, selected: ModelSelection) {
  * @param selection - Mutable selection owned by the calling entry point.
  * @returns Disposer for all scoped waterfall listeners.
  */
+/**
+ * The selection installed for one Agent scope.
+ *
+ * A deployment installs exactly one — the Session Controller, the ACP model
+ * control, or a bundle's own boot glue — and it is the sole authority on that
+ * Agent's route. A second installation does not layer: both listeners rewrite
+ * the same request config, the later one in the waterfall wins, and the loser
+ * still narrates a switch that never reached the provider. So a plugin that
+ * wants to change the route asks for the installed reference through
+ * {@link agentModelSelectionRef} and moves THAT, rather than installing a
+ * competitor.
+ */
+const installed = new WeakMap<Context, ModelSelectionRef>()
+
+/**
+ * Read the selection reference already installed for one Agent scope.
+ * @param agentCtx - the Agent's scoped context.
+ * @returns the installed reference, or `undefined` when nothing owns the route
+ *   in this composition.
+ */
+export function agentModelSelectionRef(agentCtx: Context): ModelSelectionRef | undefined {
+  return installed.get(agentCtx)
+}
+
 export function installModelSelection(agentCtx: Context, selection: ModelSelectionRef): () => void {
+  // Last installation wins the lookup, matching which listener wins the
+  // request waterfall; the disposer only clears its own entry.
+  installed.set(agentCtx, selection)
   const disposeAssembly = agentCtx.on('system-prompt/assemble', async (_assembly, _context, next) => {
     const selected = selection.current
     const assembled = await next()
@@ -120,6 +147,7 @@ export function installModelSelection(agentCtx: Context, selection: ModelSelecti
     { prepend: true },
   )
   return () => {
+    if (installed.get(agentCtx) === selection) installed.delete(agentCtx)
     disposeAssembly()
     disposeRequest()
     disposeNotice()

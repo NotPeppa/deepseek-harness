@@ -5,7 +5,9 @@ import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, {
+  installModelSelection, type Agent, type ModelSelectionRef,
+} from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
@@ -214,5 +216,40 @@ describe('plan phase model routing', () => {
     await turn(ctx, agent, 'run')
 
     expect(models(adapter.requests)).toEqual(['planner', 'executor'])
+  })
+})
+
+describe('an agent whose route another owner already installed', () => {
+  it('moves that owner\'s selection instead of installing a competing one', async () => {
+    const adapter = new MockAdapter([
+      textResponse('Default turn.'),
+      textResponse('Plan.'),
+      textResponse('Execute one.'),
+      textResponse('Execute two.'),
+    ])
+    const ctx = await harness(adapter)
+    const agent = await ctx.agentLoop.create(SessionId('phase-owned'), { provider: 'mock', model: 'base' })
+    // What the Session Controller installs for every agent it serves: one
+    // selection whose value falls back to the latest logged request header.
+    // A second installation would not layer — both rewrite the same request
+    // config, the later listener wins, and the loser narrates a switch the
+    // provider never saw.
+    const host: ModelSelectionRef = { current: undefined, assembled: undefined }
+    installModelSelection(agent.ctx, host)
+
+    await turn(ctx, agent, 'hello')
+    ctx.planMode.set(agent, true)
+    await turn(ctx, agent, 'design')
+    ctx.planMode.set(agent, false)
+    await turn(ctx, agent, 'run')
+    await turn(ctx, agent, 'keep going')
+
+    // The requests actually moved, which is the whole point.
+    expect(models(adapter.requests)).toEqual(['base', 'planner', 'executor', 'executor'])
+    expect(host.current).toMatchObject({ provider: 'mock', model: 'executor' })
+    // One notice per real handoff — not one per step, which is what a losing
+    // second selection produces.
+    expect(noticeTexts(agent)).toHaveLength(2)
+    expect(new Set(noticeTexts(agent)).size).toBe(2)
   })
 })

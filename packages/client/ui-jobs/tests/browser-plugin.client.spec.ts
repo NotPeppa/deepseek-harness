@@ -11,6 +11,7 @@ import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-c
 import { apply, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
+import { JOBS_ID } from '../src/client/definition.tsx'
 
 /** Slot ledger reader: entry ids currently registered in the header list. */
 function headerEntryIds(ctx: Context): (string | undefined)[] {
@@ -20,16 +21,29 @@ function headerEntryIds(ctx: Context): (string | undefined)[] {
 }
 
 /** Boot the browser half over a real slot tree that declares the header list. */
-async function bench(): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']> }> {
+async function bench(
+  sidebar = true,
+): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']>; registered: string[] }> {
   const ctx = new Context()
+  const registered: string[] = []
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
     name: 'root',
     children: {
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
+      'sidebar.right.pane.tab': { kind: 'keyed', scope: 'session' },
+      'sidebar.right.pane.tab.title': { kind: 'keyed', scope: 'session' },
     },
   } as never, () => null)
   ctx.provide('sessions', {})
+  if (sidebar) {
+    ctx.provide('sidebarRightTabs', {
+      register: (definition: { id: string }) => {
+        registered.push(definition.id)
+        return () => { registered.splice(registered.indexOf(definition.id), 1) }
+      },
+    } as never)
+  }
   // The locale plugin binds a settings scope, which reads the connection handle
   // and the forwarded-event port.
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
@@ -42,7 +56,7 @@ async function bench(): Promise<{ ctx: Context; fiber: ReturnType<Context['plugi
   ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, fiber }
+  return { ctx, fiber, registered }
 }
 
 describe('ui-job browser half', () => {
@@ -55,6 +69,25 @@ describe('ui-job browser half', () => {
     expect(headerEntryIds(ctx)).toContain('job-list')
     await fiber.dispose()
     expect(headerEntryIds(ctx)).not.toContain('job-list')
+  })
+
+  it('registers the Sidebar tab type, body, and title, and releases them with the fiber', async () => {
+    const { ctx, fiber, registered } = await bench()
+    expect(registered).toEqual([JOBS_ID])
+    const keys = (name: 'sidebar.right.pane.tab' | 'sidebar.right.pane.tab.title'): unknown[] =>
+      ctx.slots.entries(name).map(entry => entry.options.key)
+    expect(keys('sidebar.right.pane.tab')).toContain(JOBS_ID)
+    expect(keys('sidebar.right.pane.tab.title')).toContain(JOBS_ID)
+
+    await fiber.dispose()
+    expect(registered).toEqual([])
+    expect(keys('sidebar.right.pane.tab')).not.toContain(JOBS_ID)
+  })
+
+  it('keeps the header action when no right Sidebar is composed', async () => {
+    const { ctx } = await bench(false)
+    expect(headerEntryIds(ctx)).toContain('job-list')
+    expect(ctx.slots.entries('sidebar.right.pane.tab')).toHaveLength(0)
   })
 
   it('registers both dictionaries under its own namespace and releases them with the fiber', async () => {
