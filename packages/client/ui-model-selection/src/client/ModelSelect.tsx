@@ -55,6 +55,9 @@ export function ModelSelect(
   )
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane>('root')
+  // Provider groups collapse; every open starts fully collapsed so a long
+  // catalog stays one screen of headers.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   // The in-menu error strip serves catalog loads (its Retry re-runs the
   // load); a rejected SELECTION announces through the transient toast
   // instead, so the strip renders only while the latest failure-capable
@@ -154,13 +157,14 @@ export function ModelSelect(
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
-  }, [open, pane, state])
+  }, [open, pane, state, expanded])
   /* jscpd:ignore-end */
 
   if (!available) return null
 
   const show = (): void => {
     setPane('root')
+    setExpanded(new Set())
     setOpen(true)
     reload()
   }
@@ -334,10 +338,29 @@ export function ModelSelect(
               <div className={clsx(css.groups, 'scrollable')}>
                 {state.groups.map((group) => {
                   const headingId = `${id}-${group.id}`
+                  const shown = expanded.has(group.id)
                   return (
                     <section role="group" aria-labelledby={headingId} className={css.group} key={group.id}>
-                      <div className={css.groupTitle} id={headingId}>{group.name}</div>
-                      {group.models.map((model) => {
+                      <button
+                        ref={itemRef()}
+                        type="button"
+                        role="menuitem"
+                        id={headingId}
+                        className={css.groupTitle}
+                        aria-expanded={shown}
+                        onClick={() => {
+                          setExpanded((prev) => {
+                            const next = new Set(prev)
+                            if (!next.delete(group.id)) next.add(group.id)
+                            return next
+                          })
+                        }}
+                      >
+                        <IconChevronRightOutline14 className={clsx(css.groupChevron, shown && css.groupChevronOpen)} />
+                        <span className={css.groupName}>{group.name}</span>
+                        <span className={css.groupCount}>{group.models.length}</span>
+                      </button>
+                      {shown && group.models.map((model) => {
                         const selected = state.current?.provider === group.id && state.current.model === model.id
                         return (
                           <button

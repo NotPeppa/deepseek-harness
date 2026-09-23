@@ -15,7 +15,7 @@ import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_COPY, WELCOME_NOTICE_SETTINGS_NAMESPACE,
   WELCOME_NOTICE_VERSION,
 } from './scaffold.ts'
-import { ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, saveFailureShot } from './support.ts'
+import { ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, expandModelGroups, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/onboarding-deepseek-config', import.meta.url))
 const WELCOME_EXPECTED = join(SNAPSHOT_DIR, 'welcome.expected.md')
@@ -262,6 +262,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     await modelTrigger.waitFor({ timeout: 10_000 })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
+    await expandModelGroups(page)
     expect(await page.getByText('Configured Flash', { exact: true }).count()).toBe(0)
     await page.getByRole('menuitemradio', { name: 'Private Preview' }).waitFor({ timeout: 10_000 })
     expect(tripwire.warnings).toEqual([])

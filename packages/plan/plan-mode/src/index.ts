@@ -87,7 +87,9 @@ const EXIT_DESCRIPTION
   = 'Use only in plan mode. Present your plan for the user\'s review and, on approval, leave plan mode. '
   + 'Send the COMPLETE plan as markdown, starting with a # heading that names it. '
   + 'The user may approve (carry out the plan from your next step) or keep '
-  + 'planning — their feedback comes back in the tool result; revise and present again.'
+  + 'planning — their feedback comes back in the tool result; revise and present again. '
+  + 'On approval the user chooses how many worker agents execute the plan; send `recommended_agents` '
+  + 'so they choose against your count instead of a bare list.'
 
 /** The plan's first markdown heading (any level), or `undefined` when it has none. */
 function firstHeading(plan: string): string | undefined {
@@ -296,6 +298,13 @@ export class PlanModeController extends Service {
       description: EXIT_DESCRIPTION,
       parameters: {
         plan: { type: 'string', required: true, description: 'The complete plan, as markdown, starting with a # heading that names it.' },
+        recommended_agents: {
+          type: 'integer',
+          description: 'How many worker agents this plan actually needs, from 1 through '
+            + `${String(this.maxExecutionAgents)}: the number of its tasks that can run at the same time `
+            + 'without waiting on each other. Send 1 when the work is one ordered chain. The user picks the '
+            + 'final count and sees this as the recommendation, so count the plan rather than guessing high.',
+        },
       },
       output: {
         schema: {
@@ -372,19 +381,34 @@ export class PlanModeController extends Service {
             ? 'The user chose to keep planning; revise the plan and present it again.'
             : `The user chose to keep planning; their feedback: ${feedback}`)
         }
+        // The count the lead proposed, kept only when this deployment offers it:
+        // a recommendation outside the range is dropped rather than clamped,
+        // because a silently moved number is a recommendation the lead never
+        // made — and a bad one is never a reason to refuse an approved plan.
+        const proposed = args.recommended_agents
+        const recommended = proposed !== undefined
+          && Number.isSafeInteger(proposed)
+          && proposed >= 1
+          && proposed <= this.maxExecutionAgents
+          ? proposed
+          : undefined
         const executionAnswer = await interaction.ask({
           questions: [{
             id: EXECUTION_AGENTS_ID,
             header: 'Execution agents',
             question: 'How many worker agents should execute this plan?',
-            detail: 'The lead agent coordinates, integrates, and validates the work; it is not included in this number.',
+            // The recommendation rides the detail as well as the option, so a
+            // surface that renders no option descriptions still shows it.
+            detail: 'The lead agent coordinates, integrates, and validates the work; it is not included in this number.'
+              + (recommended === undefined ? '' : ` The lead recommends ${String(recommended)} for this plan.`),
             options: Array.from({ length: this.maxExecutionAgents }, (_, index) => {
               const count = index + 1
+              const description = count === 1
+                ? 'Use one worker agent while the lead coordinates.'
+                : `Use ${count} worker agents with a distinct task for each.`
               return {
                 label: String(count),
-                description: count === 1
-                  ? 'Use one worker agent while the lead coordinates.'
-                  : `Use ${count} worker agents with a distinct task for each.`,
+                description: count === recommended ? `Recommended — ${description}` : description,
               }
             }),
           }],

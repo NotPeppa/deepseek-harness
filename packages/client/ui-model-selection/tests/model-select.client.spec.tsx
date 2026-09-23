@@ -137,6 +137,9 @@ describe('ModelSelect reasoning effort', () => {
     fireEvent.click(trigger)
     expect(screen.queryByRole('menuitem', { name: /推理等级/ })).toBeNull()
     fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    // Groups start collapsed: the models appear only once the header is opened.
+    expect(screen.queryByRole('menuitemradio')).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: /DeepSeek/ }))
     expect(screen.queryByRole('menuitemradio', { name: 'removed-model' })).toBeNull()
     expect(screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' })).toBeTruthy()
     expect(screen.queryByText('Fast catalog description')).toBeNull()
@@ -193,6 +196,7 @@ describe('ModelSelect reasoning effort', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /选择模型|当前/ }))
     fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /^DeepSeek/ }))
     fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
     const toast = await screen.findByRole('alert')
     expect(toast.textContent).toContain('模型操作失败：session/model-unavailable: session already contains images')
@@ -235,6 +239,32 @@ describe('ModelSelect reasoning effort', () => {
       Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth)
       Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight)
     }
+  })
+
+  it('collapses every provider group again on each open', () => {
+    render(<ModelSelect
+      locked={false}
+      available
+      directory={createSnapshotStore(state())}
+      load={vi.fn()}
+      select={vi.fn().mockResolvedValue(true)}
+      t={t}
+    />)
+
+    const trigger = screen.getByRole('button', { name: /^选择模型/ })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    const header = screen.getByRole('menuitem', { name: /DeepSeek/ })
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(header)
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(1)
+
+    // Closing and reopening returns to the fully collapsed list.
+    fireEvent.mouseDown(document.body)
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    expect(screen.getByRole('menuitem', { name: /DeepSeek/ }).getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('menuitemradio')).toBeNull()
   })
 
   it('renders no Agent-bound control for an addressed subagent session', () => {

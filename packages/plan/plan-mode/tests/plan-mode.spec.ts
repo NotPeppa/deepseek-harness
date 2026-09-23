@@ -836,11 +836,16 @@ describe('exit_plan_mode', () => {
     return { ctx, agent, asked }
   }
 
-  function callExit(ctx: Context, agent: Agent | undefined, plan = '# The plan\n\ndo things') {
+  function callExit(
+    ctx: Context,
+    agent: Agent | undefined,
+    plan = '# The plan\n\ndo things',
+    recommendedAgents?: number,
+  ) {
     return ctx.tools.execute({
       callId: ToolCallId(`call-exit-${++callCounter}`),
       name: EXIT_PLAN_MODE,
-      arguments: { plan },
+      arguments: { plan, ...recommendedAgents === undefined ? {} : { recommended_agents: recommendedAgents } },
       signal: new AbortController().signal,
       ...agent ? { agent } : {},
     })
@@ -851,7 +856,9 @@ describe('exit_plan_mode', () => {
     const schema = ctx.tools.schemas().find(entry => entry.name === EXIT_PLAN_MODE)
     const parameters = schema?.parameters as { required?: string[]; properties?: Record<string, unknown> }
     expect(schema?.description).toMatch(/^Use only in plan mode\./)
-    expect(Object.keys(parameters.properties ?? {})).toEqual(['plan'])
+    // The recommendation is offered, never demanded: a lead that sends none
+    // still gets the plain count question.
+    expect(Object.keys(parameters.properties ?? {})).toEqual(['plan', 'recommended_agents'])
     expect(parameters.required).toEqual(['plan'])
   })
 
@@ -1274,6 +1281,55 @@ describe('exit_plan_mode', () => {
       card: 'generic',
       title: 'Plan review',
       content,
+    })
+  })
+
+  describe('the lead\'s recommended worker count', () => {
+    it('marks the recommended option and says it in the detail', async () => {
+      const { ctx, agent, asked } = await setupWithReview({ selected: ['Approve'] }, { selected: ['3'] })
+
+      const result = await callExit(ctx, agent, '# The plan\n\ndo things', 3)
+
+      expect(result.isError).toBe(false)
+      const question = asked[1]?.questions[0]
+      expect(question?.detail).toContain('The lead recommends 3 for this plan.')
+      expect(question?.options?.map(option => option.description?.startsWith('Recommended — ') ?? false))
+        .toEqual([false, false, true, false])
+      // The recommendation is a proposal, not a decision: the user's answer is
+      // what the tool returns.
+      if (result.isError) throw new Error('expected an approved plan')
+      expect(result.value).toEqual({ approved: true, execution_agents: 3 })
+    })
+
+    it('lets the user overrule the recommendation', async () => {
+      const { ctx, agent } = await setupWithReview({ selected: ['Approve'] }, { selected: ['1'] })
+
+      const result = await callExit(ctx, agent, '# The plan\n\ndo things', 4)
+
+      expect(result.isError).toBe(false)
+      if (result.isError) throw new Error('expected an approved plan')
+      expect(result.value).toEqual({ approved: true, execution_agents: 1 })
+    })
+
+    it('drops a recommendation this deployment does not offer, rather than moving it', async () => {
+      const { ctx, agent, asked } = await setupWithReview({ selected: ['Approve'] })
+
+      // The offered range is 1..4 here; 9 is not a count the user can pick, and a
+      // clamped 4 would be a recommendation the lead never made.
+      const result = await callExit(ctx, agent, '# The plan\n\ndo things', 9)
+
+      expect(result.isError).toBe(false)
+      const question = asked[1]?.questions[0]
+      expect(question?.detail).not.toContain('recommends')
+      expect(question?.options?.every(option => !(option.description ?? '').startsWith('Recommended'))).toBe(true)
+    })
+
+    it('asks without a recommendation when the lead sends none', async () => {
+      const { ctx, agent, asked } = await setupWithReview({ selected: ['Approve'] })
+
+      await callExit(ctx, agent)
+
+      expect(asked[1]?.questions[0]?.detail).not.toContain('recommends')
     })
   })
 })

@@ -154,7 +154,7 @@ Owned by the tool registry as a reserved transport outside filterable capability
 
 ### `exit_plan_mode`
 
-Use only in plan mode. Present your plan for the user's review and, on approval, leave plan mode. Send the COMPLETE plan as markdown, starting with a # heading that names it. The user may approve (carry out the plan from your next step) or keep planning — their feedback comes back in the tool result; revise and present again.
+Use only in plan mode. Present your plan for the user's review and, on approval, leave plan mode. Send the COMPLETE plan as markdown, starting with a # heading that names it. The user may approve (carry out the plan from your next step) or keep planning — their feedback comes back in the tool result; revise and present again. On approval the user chooses how many worker agents execute the plan; send `recommended_agents` so they choose against your count instead of a bare list.
 
 ```json
 {
@@ -163,6 +163,10 @@ Use only in plan mode. Present your plan for the user's review and, on approval,
     "plan": {
       "type": "string",
       "description": "The complete plan, as markdown, starting with a # heading that names it."
+    },
+    "recommended_agents": {
+      "type": "integer",
+      "description": "How many worker agents this plan actually needs, from 1 through 8: the number of its tasks that can run at the same time without waiting on each other. Send 1 when the work is one ordered chain. The user picks the final count and sees this as the recommendation, so count the plan rather than guessing high."
     }
   },
   "required": [

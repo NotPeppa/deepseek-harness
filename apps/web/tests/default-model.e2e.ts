@@ -18,7 +18,7 @@ import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
-import { ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, saveFailureShot } from './support.ts'
+import { ZH_BROWSER_LOCALE, connectFreshWorkspaceZh, expandModelGroups, saveFailureShot } from './support.ts'
 
 /** Points the shipped shared Agent default at this scenario's own route. */
 const OVERLAY = fileURLToPath(new URL('./default-model.overlay.yml', import.meta.url))
@@ -106,6 +106,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     await trigger.waitFor({ timeout: 15_000 })
     await trigger.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
+    await expandModelGroups(page)
     await page.getByRole('menuitemradio', { name: 'Acme Large' }).click()
 
     // The switch is what sets the default: the shared Agent-route settings section
@@ -155,6 +156,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     expect(await seat.isEnabled()).toBe(true)
     await seat.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
+    await expandModelGroups(page)
     await page.getByRole('menuitemradio').first().click()
     await expect.poll(async () => box.isEnabled(), { timeout: 15_000 }).toBe(true)
     expect(tripwire.pageErrors).toEqual([])

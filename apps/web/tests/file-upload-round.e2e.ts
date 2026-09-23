@@ -18,7 +18,7 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, recordFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, expandModelGroups, newEnglishPage, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/file-upload-round', import.meta.url))
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/file-upload-round/session.v3.jsonl', import.meta.url))
@@ -143,6 +143,7 @@ describe('web e2e: generic file upload through the real assembly', () => {
     const modelTrigger = page.getByRole('button', { name: /^Select model, current/ })
     await modelTrigger.click()
     await page.getByRole('menuitem', { name: /^Model\b/ }).click()
+    await expandModelGroups(page)
     await page.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash-Vision-Exp' }).click()
     await expect.poll(() => modelTrigger.getAttribute('aria-label'), { timeout: 10_000 })
       .toContain('DeepSeek-V4-Flash-Vision-Exp')

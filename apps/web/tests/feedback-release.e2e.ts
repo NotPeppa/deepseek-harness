@@ -15,7 +15,7 @@ import {
   compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, readPersistedEvents, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, expandModelGroups, newEnglishPage, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/feedback-release', import.meta.url))
 // Both routes borrow the same settled turn; this manifest references its owner.
@@ -80,6 +80,7 @@ describe.each(MODE === 'record' ? ['deepseek-official'] : ['deepseek-official', 
     const trigger = page.getByRole('button', { name: /^Select model, current/ })
     await trigger.click()
     await page.getByRole('menuitem', { name: /^Model\b/ }).click()
+    await expandModelGroups(page)
     await page.getByRole('menuitemradio', { name, exact: true }).click()
     await expect.poll(() => trigger.getAttribute('aria-label')).toContain(name)
     // The durable projection can update the label before the selection reply closes the menu.

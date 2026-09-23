@@ -197,3 +197,14 @@ export async function saveFailureShot(page: Page, name: string): Promise<void> {
 export function conversationContextKey(kind: string, id: string): string {
   return `${kind.length}:${kind}${id}`
 }
+
+/**
+ * Open every collapsed provider group in the composer's model pane. The pane
+ * opens fully collapsed, so specs that click a model must expand first.
+ * @param page - the page showing the drilled-in model list.
+ */
+export async function expandModelGroups(page: Page): Promise<void> {
+  for (const header of await page.locator('[role="menu"] [aria-expanded="false"]').all()) {
+    await header.click()
+  }
+}
