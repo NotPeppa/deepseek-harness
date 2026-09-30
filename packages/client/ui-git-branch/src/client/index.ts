@@ -193,7 +193,7 @@ export function apply(ctx: ClientContext): void {
       open: signal => ctx.remote.git.checkoutChanges(signal),
       ended: () => new Error('git checkout changes ended'),
     })
-    void (async () => {
+    const consuming = (async () => {
       for await (const item of stream) {
         item.accept()
         // Which workspace moved is not consulted: a seat re-reads its own
@@ -204,7 +204,10 @@ export function apply(ctx: ClientContext): void {
     })().catch(() => {
       // A stream that will not stay open leaves the focus re-read in charge.
     })
-    return () => { void stream.dispose() }
+    return async () => {
+      await stream.dispose()
+      await consuming
+    }
   }, 'ui-git-branch: checkout change stream')
 
   // A checkout moved outside this Host — a terminal switch — is not announced,

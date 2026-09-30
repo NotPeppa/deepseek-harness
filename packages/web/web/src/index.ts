@@ -6,7 +6,7 @@
  * @module @deepseek-ai/dsh-web
  */
 
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, Service, type Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {
@@ -66,6 +66,15 @@ export interface WebRuntimeConfig {
   readonly fetchProvider?: string
 }
 
+
+/** Provider choices supplied as live Loader configuration references. */
+interface WebLiveConfig {
+  /** Explicit search provider, or automatic selection when unset. */
+  searchProvider: Volatile<string | undefined>
+  /** Explicit fetch provider, or automatic selection when unset. */
+  fetchProvider: Volatile<string | undefined>
+}
+
 /**
  * The web access service. Registered as `ctx.web` (one instance per context).
  *
@@ -84,43 +93,28 @@ export class WebRuntime extends Service {
    * `$DSH_WEB_SEARCH_PROVIDER` / `$DSH_WEB_FETCH_PROVIDER` are equivalent to
    * `searchProvider` / `fetchProvider` and are NOT a hidden priority chain.
    */
-  static Config: z<WebRuntimeConfig> = z.object({
-    searchProvider: z.string(),
-    fetchProvider: z.string(),
+  static Config = z.object({
+    searchProvider: z.string().volatile(),
+    fetchProvider: z.string().volatile(),
   })
 
   private searchProviders = new Map<string, WebSearchProvider>()
   private fetchProviders = new Map<string, WebFetchProvider>()
-  /**
-   * The currently authoritative selection: the settings section while one is
-   * attached, the composition entry otherwise. Selection is read per operation,
-   * so changing the provider in Settings needs no restart.
-   */
-  private current: () => WebRuntimeConfig
-
-  constructor(ctx: Context, config: WebRuntimeConfig = {}) {
+  constructor(ctx: Context, private readonly config: WebLiveConfig) {
     super(ctx, 'web')
-    this.current = () => config
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, WEB_SETTINGS_NAMESPACE, WebRuntime.Config, config, {
-        setSource: (source) => {
-          this.current = source
-        },
-        // Selection is resolved per operation, so a committed change needs no
-        // re-registration of anything here.
-        onChange: () => {},
-      })
+    ctx.inject(['settings'], (child) => {
+      child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
     })
   }
 
   /** Configured search provider id, or the operational environment override. */
   private get searchProviderId(): string | undefined {
-    return this.current().searchProvider ?? process.env.DSH_WEB_SEARCH_PROVIDER
+    return this.config.searchProvider.get() ?? process.env.DSH_WEB_SEARCH_PROVIDER
   }
 
   /** Configured fetch provider id, or the operational environment override. */
   private get fetchProviderId(): string | undefined {
-    return this.current().fetchProvider ?? process.env.DSH_WEB_FETCH_PROVIDER
+    return this.config.fetchProvider.get() ?? process.env.DSH_WEB_FETCH_PROVIDER
   }
 
   /**

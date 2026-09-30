@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/git-controller/README.md
-README.md: f93e7a6e5f4caf3979564fa8b829236563997cf4
-README.zh.md: ba31305f8c431c22a532098ef0d607e4bb86019b
+/:
+  en: f0b30feea7cdd606
+  zh: 9f459164227b40be
+/deepseek-ai-dsh-api-git-controller:
+  en: 3c22d9a746aab0e0
+  zh: 1d752c363e70ba85
+/deepseek-ai-dsh-api-git-controller/summary:
+  en: be8f6f0aa6d0ccef
+  zh: 9f3b67c53f1caf3c
+/deepseek-ai-dsh-api-git-controller/table-of-contents:
+  en: 9be40445baed505c
+  zh: 358f99776a9273f0
+/deepseek-ai-dsh-api-git-controller/use-this-package:
+  en: 7a08cd2963ff5f9b
+  zh: ee59f361587b30e2
+/deepseek-ai-dsh-api-git-controller/understand-the-implementation:
+  en: 97f5f0f5b4e2a7e0
+  zh: 24f3b798f9021678
+/deepseek-ai-dsh-api-git-controller/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-api-git-controller/model-experience/tool-schema-git-worktree:
+  en: 0ddd782ac7041677
+  zh: 21ffc16b7a8c49a6
+/deepseek-ai-dsh-api-git-controller/model-experience/tool-schema-git-worktree/what-the-model-sees:
+  en: 982561c9bd175ae4
+  zh: a8c26b4a5b5af128
+/deepseek-ai-dsh-api-git-controller/model-experience/tool-schema-git-worktree/token-effect:
+  en: 0d99290790325a66
+  zh: 3893d28c8221f912
+/deepseek-ai-dsh-api-git-controller/model-experience/tool-schema-git-worktree/kv-cache-effect:
+  en: 4b1a7ce8568b6119
+  zh: d465ec2cd8bc8c68
+/deepseek-ai-dsh-api-git-controller/known-limitations-and-deferred-work:
+  en: 1a00846ad45c4c5c
+  zh: 9f4c0a8017038d93
+/deepseek-ai-dsh-api-git-controller/known-limitations-and-deferred-work/dev-note:
+  en: e88df1ba854956d6
+  zh: 410e12aa85bca69f

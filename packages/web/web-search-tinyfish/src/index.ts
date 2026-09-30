@@ -7,7 +7,7 @@
  * @module @deepseek-ai/dsh-web-search-tinyfish
  */
 
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -41,20 +41,20 @@ export const WEB_SEARCH_TINYFISH_SETTINGS_NAMESPACE = 'web-search-tinyfish'
 /** Plugin config (all optional — `apply` fills credential and constant defaults). */
 export interface Config {
   /** Literal TinyFish API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
-  apiKey?: string
+  apiKey: Volatile<string | undefined>
   /** Credential reference resolved for each search; defaults to `TINYFISH_API_KEY`. */
-  apiKeyEnv?: string
+  apiKeyEnv: Volatile<string>
   /** Endpoint base; the search operation is its root path. */
-  baseURL?: string
+  baseURL: Volatile<string>
 }
 
-export const Config: z<Config> = z.object({
-  apiKey: z.string().role('secret'),
-  apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
+export const Config = z.object({
+  apiKey: z.string().role('secret').volatile(),
+  apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV).volatile(),
   // Declared with its default here rather than only at the use site: a
   // configuration surface renders the resolved section, so a default the schema
   // does not carry reads there as no value at all.
-  baseURL: z.string().default(TINYFISH_DEFAULT_BASE_URL),
+  baseURL: z.string().default(TINYFISH_DEFAULT_BASE_URL).volatile(),
 })
 
 /**
@@ -65,8 +65,8 @@ export const Config: z<Config> = z.object({
  * @param config - the currently authoritative section.
  * @returns options for one search.
  */
-function resolveOptions(ctx: Context, config: Config): TinyFishSearchProviderOptions {
-  const apiKeyEnv = credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV)
+function resolveOptions(ctx: Context, config: { [K in keyof Config]: ReturnType<Config[K]['get']> }): TinyFishSearchProviderOptions {
+  const apiKeyEnv = credentialRef(config.apiKeyEnv)
   const literalApiKey = config.apiKey !== undefined && config.apiKey.length > 0
     ? config.apiKey
     : undefined
@@ -80,7 +80,7 @@ function resolveOptions(ctx: Context, config: Config): TinyFishSearchProviderOpt
       return ambient !== undefined && ambient.value.length > 0 ? ambient.value : undefined
     },
     apiKeyEnv,
-    baseURL: config.baseURL ?? TINYFISH_DEFAULT_BASE_URL,
+    baseURL: config.baseURL,
   }
 }
 
@@ -90,16 +90,7 @@ function resolveOptions(ctx: Context, config: Config): TinyFishSearchProviderOpt
  * @param config - the composition entry, which the settings section layers over.
  */
 export function apply(ctx: Context, config: Config): void {
-  let current: () => Config = () => config
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, WEB_SEARCH_TINYFISH_SETTINGS_NAMESPACE, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      // The registration carries no resolved value: the provider projects the
-      // section per search, so a committed change needs no re-registration.
-      onChange: () => {},
-    })
-  })
-  ctx.web.registerSearchProvider(new TinyFishSearchProvider(() => resolveOptions(ctx, current())))
+  ctx.web.registerSearchProvider(new TinyFishSearchProvider(() => resolveOptions(ctx, {
+    apiKey: config.apiKey.get(), apiKeyEnv: config.apiKeyEnv.get(), baseURL: config.baseURL.get(),
+  })))
 }

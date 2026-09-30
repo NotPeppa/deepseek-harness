@@ -6,8 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionJob as JobView } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { JobView } from '@deepseek-ai/dsh-api-job-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { JOBS_ID, JOBS_KIND, jobsDefinition } from '../src/client/definition.tsx'
 import { JobsBody, type JobsBodyProps } from '../src/client/JobsBody.tsx'
@@ -38,24 +37,17 @@ function job(over: Partial<JobView> = {}): JobView {
     label: 'pnpm run build',
     status: 'running',
     startedAt: START,
+    output: { total: 0, earliest: 0 },
     ...over,
   }
 }
 
 function props(jobs: readonly JobView[] | undefined): JobsBodyProps {
-  const state = {
-    ids: [SESSION],
-    byId: {},
-    current: SESSION,
-    phase: 'ready',
-    subagentsByParent: {},
-    jobsBySession: jobs === undefined ? {} : { [SESSION]: jobs },
-    currentAddress: undefined,
-  } satisfies SessionListState
-  function useSessions<T>(select: (snapshot: SessionListState) => T): T {
-    return select(state)
-  }
-  return { sessionId: SESSION, useSessions, t } as unknown as JobsBodyProps
+  return {
+    sessionId: SESSION, t,
+    useJobs: select => select({ rows: jobs === undefined ? {} : { [SESSION]: jobs }, observed: {} }),
+    watchRows: () => () => {},
+  } as JobsBodyProps
 }
 
 describe('jobs tab definition', () => {

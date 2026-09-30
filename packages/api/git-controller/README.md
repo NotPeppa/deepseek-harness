@@ -25,7 +25,9 @@ Host owner of the `git` Remote namespace. It answers what one registered workspa
 
 Compose the plugin into a Host assembly that provides `subprocess` and `workspaceRegistry`, and mount its generated contribution in the Client Remote assembly (`packages/api/remotes`) so `remote.git` exists in the browser. A namespace must also be injected by name — `inject: ['remote', 'remote.git']` — or `ctx.remote.git` is simply not there.
 
-Four methods:
+Response types are defined in [`src/types.ts`](src/types.ts): `GitStatus`, `GitSwitchOutcome`, `GitCheckoutChanged`, `GitWorktree`, `GitWorktreeCreated`, and `GitWorktreeRemoved`.
+
+Branch methods:
 
 - `status(workspaceId)` → `{ repository, current?, branches, remoteBranches }`. `repository: false` covers both "not a working tree" and "no git on PATH". `current` is absent on a detached HEAD, and `origin/HEAD` is filtered out of the remote list — it points at another entry of that same list.
 - `switchBranch(workspaceId, branch)` → `{ ok, message? }`, for a local branch.
@@ -53,10 +55,26 @@ Every failure carries git's own stderr, so a dirty tree or a branch held by anot
 
 **A detached HEAD is not a branch.** `rev-parse --abbrev-ref HEAD` answers the literal `HEAD` there; that is reported as no current branch rather than a branch named `HEAD`.
 
-<a id="known-limitations-and-deferred-work"></a>
+## Model Experience
+
+### Tool schema: git_worktree
+
+#### What the model sees
+
+The model can list, create, and remove clean managed worktrees through the [generated tool schema](../../../docs/tool-catalog.md#deepseek-aidsh-api-git-controller); results name the affected checkout and workspace.
+
+#### Token effect
+
+The tool adds one declaration and an operation result when called; it contributes no prompt section.
+
+#### KV Cache effect
+
+The declaration remains stable across worktree operations; results extend the session history.
+
 ## Known Limitations and Deferred Work
 
-- No worktree operations.
+<a id="known-limitations-and-deferred-work"></a>
+
 - Creation is always at the current HEAD; a branch cannot be created from another base.
 - A switch is workspace-level and reaches every session of that workspace.
 

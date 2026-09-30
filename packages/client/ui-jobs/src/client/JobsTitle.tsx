@@ -4,7 +4,7 @@
  * show the bare label.
  */
 import type { ReactNode } from 'react'
-import { IconQueueOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconQueueOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './JobsBody.module.css'
 
@@ -17,7 +17,7 @@ export function JobsTitle({ useTabInfo }: PropsRuntime<'sidebar.right.pane.tab.t
   const { tab } = useTabInfo()
   return (
     <>
-      <IconQueueOutline14 size={16} className={css.titleIcon} />
+      <IconQueueOutlineRegular size={16} className={css.titleIcon} />
       {tab.title}
     </>
   )

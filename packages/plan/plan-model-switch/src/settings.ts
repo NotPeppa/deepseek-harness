@@ -1,41 +1,29 @@
-/**
- * Host-owned settings registration for plan-phase model routing.
- *
- * The runtime plugin is mounted only by agent presets that perform phase
- * routing. This companion stays on the Host so the configuration exists before
- * such a session starts and remains available after its last session closes.
- *
- * @module @deepseek-ai/dsh-plan-model-switch/settings
- */
-
-import type { Context } from '@deepseek-ai/cordis'
+/** Host-owned, live plan and execution model choices. */
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import {
-  Config as PlanModelSwitchConfig,
-  PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
-  type Config as PlanModelSwitchConfigValue,
-} from './index.ts'
+import z from '@deepseek-ai/schemastery'
+import type { PhaseRoutes } from './routes.ts'
 
-/** Cordis plugin name used by loader diagnostics. */
+/** Cordis plugin name. */
 export const name = 'plan-model-switch-settings'
-
-/** The settings provider owns the registered namespace. */
+/** Services used to register the custom configuration page. */
 export const inject = ['settings']
-
-/** Host-level defaults for every plan/execute runtime. */
-export type Config = PlanModelSwitchConfigValue
-
-/** Schema shared with the agent runtime. */
-export const Config = PlanModelSwitchConfig
-
-/**
- * Keep the phase-routing settings namespace registered for the Host lifetime.
- * @param ctx - Host plugin context carrying the settings provider.
- * @param config - Host defaults layered below saved user choices.
+/** Live host choices shared by plan/execute sessions. */
+export type Config = { [K in keyof Required<PhaseRoutes>]: Volatile<Required<PhaseRoutes>[K]> }
+/** Live routing fields projected by the settings service. */
+export const Config = z.object({
+  planningProvider: z.string().default('').volatile(),
+  planningModel: z.string().default('').volatile(),
+  planningReasoningEffort: z.string().default('').volatile(),
+  executingProvider: z.string().default('').volatile(),
+  executingModel: z.string().default('').volatile(),
+  executingReasoningEffort: z.string().default('').volatile(),
+  foldPlanning: z.boolean().default(true).volatile(),
+})
+/** Supply the custom page policy.
+ * @param ctx Host context.
+ * @param _config Live routing choices exposed through the settings service.
  */
-export function apply(ctx: Context, config: Config): void {
-  ctx.settings.register<
-    typeof PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
-    Config
-  >(PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE, Config, { base: config })
+export function apply(ctx: Context, _config: Config): void {
+  ctx.effect(() => ctx.settings.configure({ auto: false }, ctx.fiber))
 }

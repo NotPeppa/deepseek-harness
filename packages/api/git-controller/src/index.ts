@@ -280,7 +280,7 @@ export class GitController extends TypertRemoteService {
     // workspace, never in a bare directory.
     const workspace = await this.ctx.workspaceRegistry.create(path)
     this.announce(workspaceId)
-    return { ok: true, path: workspace.path, workspaceId: workspace.id as string }
+    return { ok: true, path: workspace.path, workspaceId: workspace.id }
   }
 
   /**

@@ -17,7 +17,7 @@
   min-height: 28px;
   padding: 0 8px;
   border: none;
-  border-radius: 16px;
+  border-radius: 999px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
@@ -59,10 +59,10 @@
   z-index: 30;
   width: 260px;
   padding: 6px;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-overlay);
-  box-shadow: var(--dsw-elevation-prominent);
+  border: none;
+  border-radius: var(--dsw-radius-lg);
+
+  --dsh-scrollbar-surface: var(--dsw-specific-menu);
 }
 
 .search {
@@ -71,8 +71,8 @@
   padding: 0 8px;
   margin-bottom: 6px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  background: var(--dsw-alias-bg-module-platform);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsh-scrollbar-surface);
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
 }
@@ -93,7 +93,7 @@
   width: 100%;
   padding: 6px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   background: none;
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
@@ -150,7 +150,7 @@
   padding: 6px 8px;
   border: none;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--dsw-radius-md) var(--dsw-radius-md);
   background: none;
   color: var(--dsw-alias-brand-primary);
   font-size: 13px;
@@ -178,7 +178,7 @@
 .createSubmit {
   padding: 4px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-md);
   background: none;
   font-size: 13px;
   cursor: pointer;
@@ -237,7 +237,7 @@
   flex: none;
   padding: 4px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-md);
   background: none;
   font-size: 12px;
   cursor: pointer;

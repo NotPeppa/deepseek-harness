@@ -42,8 +42,17 @@ kind: "package-reference"
 
 **刷新由事件驱动，而非轮询**：挂载时、弹层打开时、切换之后，以及窗口重新获得焦点时（5 秒节流）。在终端里切换过的检出，会在下一次看向窗口时被发现——那正是过期分支会误导人的时刻。
 
-<a id="known-limitations-and-deferred-work"></a>
+## 模型体验
+
+无直接影响：浏览器控件为用户显示 Git 状态，宿主 Git 工具负责模型声明与结果。
+
+#### KV Cache 影响
+
+无影响；本包不组装模型请求。
+
 ## 已知限制与后续工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 已被其它 worktree 检出的分支只能被报告、无法取用——git 会拒绝，处理另一个检出要去管理界面。
 - 创建总是基于某个 committish；没有选择器，只有一个文本框。

@@ -1,19 +1,18 @@
-// Session stats under the composer, split into two icon pills: a gauge pill
-// (turn/step counts) opening the time-and-speed dialog, and a database pill
-// (total tokens + I/O + cache hit + output speed) opening the token-usage dialog.
+// Composer statistics: Compact exposes speed and cache hit as plain readings;
+// Detailed exposes counts and totals with time and token-usage dialogs.
 // Settled-node identity prevents stream-delta updates from rerendering the row.
 // Mounted on 'conversation.composer.dock' so it sticks with the composer in the
 // active conversation scrollport (see ConversationRoot data-conversation-scroll).
 
 import { memo, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IconDatabaseOutline16, IconGaugeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDatabaseOutlineRegular, IconGaugeOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: merges the sessionStats key into SessionProjectionMap for useProjection.
 import type {} from '@deepseek-ai/dsh-session-stats/client'
 import type { TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
-import type { ChatViewSlotProps } from '../contract/slots.ts'
+import type { ChatViewSlotProps, PerformanceUsageInjected } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { formatTokensPerSecond } from './message-chrome.ts'
 import { assistantStepReading } from '../contract/turn-metrics.ts'
@@ -121,7 +120,7 @@ export function billedInputTokens(usage: TokenUsageProjection): number {
 }
 
 /** Props: the conversation-snapshot selector plus the projection read seat. */
-export interface StatsPillsProps {
+export interface StatsPillsProps extends InjectFace<PerformanceUsageInjected> {
   useChat: SnapshotSelectorHook<ChatSnapshot>
   useProjection: UseProjection
   /** The owning dock's locale seat. */
@@ -149,7 +148,7 @@ function TimePill({ stats, t, dialog }: {
     return (
       <span className={css.anchor}>
         <span className={css.pill}>
-          <IconGaugeOutline16 />
+          <IconGaugeOutlineRegular />
           {label}
         </span>
       </span>
@@ -165,7 +164,7 @@ function TimePill({ stats, t, dialog }: {
         aria-label={counts}
         onClick={() => { setOpen(!open) }}
       >
-        <IconGaugeOutline16 />
+        <IconGaugeOutlineRegular />
         {label}
       </button>
       {open && createPortal(
@@ -178,7 +177,7 @@ function TimePill({ stats, t, dialog }: {
         >
           <div className={dialogCss.title}>
             <span className={dialogCss.titleLabel}>
-              <IconGaugeOutline16 />
+              <IconGaugeOutlineRegular />
               {t('stats.dialog.title')}
             </span>
           </div>
@@ -251,7 +250,7 @@ function UsagePill({ usage, tps, t, dialog }: {
         aria-label={segments.join(' · ')}
         onClick={() => { setOpen(!open) }}
       >
-        <IconDatabaseOutline16 />
+        <IconDatabaseOutlineRegular />
         <span className={css.label}>
           {segments.map((segment, index) => (
             <span key={segment}>
@@ -271,7 +270,7 @@ function UsagePill({ usage, tps, t, dialog }: {
         >
           <div className={dialogCss.title}>
             <span className={dialogCss.titleLabel}>
-              <IconDatabaseOutline16 />
+              <IconDatabaseOutlineRegular />
               {t('stats.dialog.usageTitle')}
             </span>
             <span className={dialogCss.titleValue}>{exactCount(total, t)}</span>
@@ -310,7 +309,8 @@ function UsagePill({ usage, tps, t, dialog }: {
   )
 }
 
-export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }: StatsPillsProps) {
+export const StatsPills = memo(function StatsPills({ useChat, useProjection, usePerformanceUsage, t }: StatsPillsProps) {
+  const mode = usePerformanceUsage(value => value)
   const settledNodes = useChat(s => s.legacy.nodes)
   const usage = useProjection('tokenUsage')
   // One exclusive slot for both dialogs: opening either pill closes the other.
@@ -330,9 +330,22 @@ export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }
   // billing (e.g. every request failed) shows its counts without a usage pill.
   const hasTokens = usage !== undefined
     && (billedInputTokens(usage) > 0 || usage.outputTokens > 0)
+  if (mode === 'compact') {
+    const speed = stats.decodeMs > 0
+      ? t('message.tokensPerSecond', { tps: formatTokensPerSecond(stats.decodeTokens / (stats.decodeMs / 1_000)) })
+      : null
+    const cacheHit = hasTokens ? cacheHitPercent(usage) : null
+    if (speed === null && cacheHit === null) return null
+    return (
+      <div className={css.root} data-composer-stats>
+        {speed !== null && <span className={css.pill}><IconGaugeOutlineRegular />{speed}</span>}
+        {cacheHit !== null && (
+          <span className={css.pill}><IconDatabaseOutlineRegular />{t('stats.cacheHit', { percent: cacheHit })}</span>
+        )}
+      </div>
+    )
+  }
   if (stats.steps === 0 && !hasTokens) return null
-  // data-composer-stats: InputBar's `.root:has([data-composer-stats])` rule
-  // tightens the composer's bottom clearance only while this row renders.
   return (
     <div className={css.root} data-composer-stats>
       {stats.steps > 0 && (

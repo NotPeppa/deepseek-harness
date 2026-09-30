@@ -4,7 +4,7 @@
  * plus the fold switch.
  *
  * The routes are ordinary section fields — no credential rides here — so the
- * staging is the plain {@link CardForm}. What this controller adds is the
+ * staging is the plain {@link SettingsFormModel}. What this controller adds is the
  * catalog: the same `session.modelCatalog()` directory the Models page and the
  * Subagent card read, joined with whatever the section already stores so a
  * saved route the catalog stopped advertising stays visible and removable.
@@ -15,11 +15,10 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { ModelProviderGroup } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
-  CardForm, textField,
-  type CardActions, type CardFieldSpec, type CardFieldState, type CardShell,
-} from './card-form.ts'
+  SettingsFormModel, settingsTextField,
+  type SettingsFormScope, type SettingsFormActions, type SettingsFieldSpec, type SettingsFieldState, type SettingsFormShell,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 
 /**
  * Namespace of the plan-phase routing plugin. Spelled here rather than
@@ -66,17 +65,17 @@ export interface EffortChoice {
 /** What one phase's controls render from. */
 export interface PhaseState {
   /** Staged `provider/model`, or empty when this phase does not switch. */
-  route: CardFieldState
+  route: SettingsFieldState
   /** Routes the user can pick, including one the catalog no longer advertises. */
   choices: readonly RouteChoice[]
   /** Staged effort for the chosen model. */
-  effort: CardFieldState
+  effort: SettingsFieldState
   /** Efforts the chosen model advertises; empty when it advertises none. */
   efforts: readonly EffortChoice[]
 }
 
 /** What the plan-phase card renders. */
-export interface PlanModelSwitchCardState extends CardShell {
+export interface PlanModelSwitchCardState extends SettingsFormShell {
   planning: PhaseState
   executing: PhaseState
   /** Whether saving would leave the planning fold enabled. */
@@ -88,7 +87,7 @@ export interface PlanModelSwitchCardState extends CardShell {
 }
 
 /** The registration-side face the plan-phase card's slot entry injects. */
-export interface PlanModelSwitchCardFace extends CardActions {
+export interface PlanModelSwitchCardFace extends SettingsFormActions {
   hooks: {
     /** Card snapshot bound by the renderer as usePlanModelSwitchCard. */
     planModelSwitchCard: SnapshotStore<PlanModelSwitchCardState>
@@ -114,7 +113,7 @@ const FIELDS = {
  * @param field - field name inside the namespace section.
  * @returns the field's conversion spec.
  */
-function switchField(field: string): CardFieldSpec {
+function switchField(field: string): SettingsFieldSpec {
   return {
     field,
     format: value => value === true ? SWITCH_ON : SWITCH_OFF,
@@ -150,7 +149,7 @@ export function splitRouteValue(value: string): { provider: string; model: strin
 
 /** Bridges the `plan-model-switch` scope and the Host model catalog onto the card. */
 export class PlanModelSwitchCardController {
-  private readonly form: CardForm<PlanModelSwitchSettings>
+  private readonly form: SettingsFormModel<PlanModelSwitchSettings>
   private readonly store: SnapshotStore<PlanModelSwitchCardState>
   private groups: readonly ModelProviderGroup[] = []
   private status: PlanModelSwitchCardState['catalogStatus'] = 'idle'
@@ -164,12 +163,12 @@ export class PlanModelSwitchCardController {
    *   answers the Host model catalog.
    */
   constructor(
-    scope: SettingsScope<PlanModelSwitchSettings>,
+    scope: SettingsFormScope<PlanModelSwitchSettings>,
     private readonly ctx: ClientContext,
   ) {
-    this.form = new CardForm(scope, [
+    this.form = new SettingsFormModel(scope, [
       ...Object.values(FIELDS).flatMap(fields => [
-        textField(fields.provider), textField(fields.model), textField(fields.effort),
+        settingsTextField(fields.provider), settingsTextField(fields.model), settingsTextField(fields.effort),
       ]),
       switchField(FOLD_FIELD),
     ])
@@ -228,6 +227,7 @@ export class PlanModelSwitchCardController {
   dispose(): void {
     this.disposed = true
     this.generation += 1
+    this.form.dispose()
   }
 
   private async loadCatalog(): Promise<void> {
@@ -237,7 +237,7 @@ export class PlanModelSwitchCardController {
     this.partial = false
     this.store.set(this.projection())
     const response = await this.ctx.remote.session.modelCatalog()
-    if (this.disposed || generation !== this.generation) return
+    if (generation !== this.generation) return
     if (response.ok) {
       this.groups = response.value.groups
       this.partial = response.value.failures.length > 0

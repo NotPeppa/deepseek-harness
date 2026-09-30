@@ -38,6 +38,7 @@ export interface FoldSpan {
  *   produced no reviewed plan.
  */
 export function deliverableNodeSeq(session: Session, toolName: string): SessionSeq | undefined {
+  // oxlint-disable-next-line typescript/no-deprecated -- retained fold lookup includes calls outside the current surface.
   const call = session.snapshotEvents().findLast(event =>
     event.type === 'tool/call' && event.data.name === toolName)
   if (call === undefined) return undefined

@@ -9,18 +9,18 @@
 
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { SelectField } from './fields.tsx'
-import { PluginCard } from './PluginCard.tsx'
+import { SettingsSelectField as SelectField } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './fields.module.css'
 import { foldSwitchText } from './plan-model-switch-card-controller.ts'
 import type {
   PhaseState, PlanModelSwitchCardFace, PlanPhase,
 } from './plan-model-switch-card-controller.ts'
-import type {} from './slot-contract.ts'
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 
 /** Props the renderer binds for the plan-phase card. */
 export type PlanModelSwitchCardProps =
-  PropsRuntime<'settings.plugin.item'>
+  PropsRuntime<'plugins.item'>
   & PropsLocale<'settings.plugins'>
   & InjectFace<PlanModelSwitchCardFace>
 
@@ -32,6 +32,7 @@ export type PlanModelSwitchCardProps =
 export function PlanModelSwitchCard(props: PlanModelSwitchCardProps) {
   const { t } = props
   const state = props.usePlanModelSwitchCard(snapshot => snapshot)
+  if (props.view === 'summary') return t('planPhaseDescription')
   const disabled = !state.writable
 
   /**
@@ -87,10 +88,7 @@ export function PlanModelSwitchCard(props: PlanModelSwitchCardProps) {
   )
 
   return (
-    <PluginCard
-      t={t}
-      titleKey="planPhaseTitle"
-      descriptionKey="planPhaseDescription"
+    <SettingsForm labels={{ unavailable: t('unavailable'), readOnly: t('readOnly'), saveFailed: t('saveFailed'), save: t('save'), saving: t('saving') }}
       state={state}
       onSave={props.save}
       onDiscard={props.discard}
@@ -128,6 +126,6 @@ export function PlanModelSwitchCard(props: PlanModelSwitchCardProps) {
         </div>
         <p className={css.hint}>{t('planPhaseFoldHint')}</p>
       </div>
-    </PluginCard>
+    </SettingsForm>
   )
 }

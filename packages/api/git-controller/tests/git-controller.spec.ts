@@ -1,6 +1,11 @@
 /** Branch reading and the workspace fence, over a scripted subprocess seam. */
 import { describe, expect, it } from 'vitest'
+import { Context } from '@deepseek-ai/cordis'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { contains, GitController, isPlainSegment, parseWorktrees } from '../src/index.ts'
+import { registerWorktreeTool } from '../src/worktree-tool.ts'
 
 /** One scripted git invocation keyed by its argv tail. */
 interface ScriptedRun {
@@ -60,6 +65,25 @@ const SIGNAL = new AbortController().signal
 const NL = String.fromCharCode(10)
 
 describe('GitController', () => {
+  it('rejects an unknown worktree operation before dispatching Git', async () => {
+    const ctx = new Context()
+    const { git, calls } = controller(() => ({ exitCode: 0 }))
+    try {
+      await ctx.plugin(SystemPrompt)
+      await ctx.plugin(ToolRuntime)
+      registerWorktreeTool(ctx, git)
+      await ctx.fiber.await()
+      const result = await ctx.tools.execute({
+        signal: SIGNAL, callId: ToolCallId('invalid-worktree'), name: 'git_worktree',
+        arguments: { operation: 'destroy' },
+      })
+      expect(result.isError).toBe(true)
+      expect(calls).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('reports a branch, both listings, and the argv it used', async () => {
     const { git, calls } = controller((argv) => {
       if (argv[1] === 'rev-parse' && argv[2] === '--is-inside-work-tree') return { exitCode: 0, stdout: 'true' }

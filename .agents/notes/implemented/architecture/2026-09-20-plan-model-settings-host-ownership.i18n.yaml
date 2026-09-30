@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-plan-model-settings-host-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-plan-model-settings-host-ownership.md
-2026-09-20-plan-model-settings-host-ownership.md: 6747655c14e8e60fd54f3c26d16d6125ba6565c3
-2026-09-20-plan-model-settings-host-ownership.zh.md: ca1e920abd686bf9809b7d753a606597057634d5
+/agent-note-plan-model-settings-have-a-host-owner:
+  en: eb970abf4daf136d
+  zh: 8f6cf9ebb55f77b6
+/agent-note-plan-model-settings-have-a-host-owner/problem:
+  en: 4cddae43960f32db
+  zh: 23a8d666453f892d
+/agent-note-plan-model-settings-have-a-host-owner/decision:
+  en: ad0912587f79377f
+  zh: fa82582d7563505d
+/agent-note-plan-model-settings-have-a-host-owner/alternatives-considered:
+  en: 280e1d27188d4e36
+  zh: d6d53b1c28d77aed
+/agent-note-plan-model-settings-have-a-host-owner/consequences:
+  en: e5227f456737ecb8
+  zh: 8c40b6aa8e088a89
+/agent-note-plan-model-settings-have-a-host-owner/verification:
+  en: e5ec9aa52536580e
+  zh: d0d2cccf7ec07c63

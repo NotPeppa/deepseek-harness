@@ -21,10 +21,10 @@ export type ThemePreference = typeof THEME_PREFERENCES[number]
 export const DEFAULT_PREFERENCE: ThemePreference = 'system'
 
 /** Smallest accepted content font size (px). */
-export const FONT_SIZE_MIN = 12
+export const FONT_SIZE_MIN = 10
 
 /** Largest accepted content font size (px). */
-export const FONT_SIZE_MAX = 17
+export const FONT_SIZE_MAX = 22
 
 /** Content font size when the user-settings document has no override (px). */
 export const DEFAULT_FONT_SIZE = 14
@@ -49,12 +49,16 @@ export const DEFAULT_BACKGROUND_IMAGE = ''
 
 /** Smallest / largest / default background blur radius (px). */
 export const BACKGROUND_BLUR_MIN = 0
+/** Largest accepted wallpaper blur in pixels. */
 export const BACKGROUND_BLUR_MAX = 40
+/** Default wallpaper blur in pixels. */
 export const DEFAULT_BACKGROUND_BLUR = 0
 
 /** Smallest / largest / default background opacity (percent the wallpaper shows). */
 export const BACKGROUND_OPACITY_MIN = 0
+/** Largest wallpaper opacity percentage. */
 export const BACKGROUND_OPACITY_MAX = 100
+/** Default wallpaper opacity percentage. */
 export const DEFAULT_BACKGROUND_OPACITY = 30
 
 /** Durable theme section shared by the Host schema and the browser scope. */

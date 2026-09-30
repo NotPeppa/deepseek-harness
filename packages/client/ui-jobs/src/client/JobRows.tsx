@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { SessionJob as JobView } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { JobView } from '@deepseek-ai/dsh-api-job-controller/client'
 import { StateDot, type StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { NS } from './locales.ts'

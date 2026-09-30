@@ -6,15 +6,15 @@
 
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { SecretField, ValueField } from './fields.tsx'
-import { PluginCard } from './PluginCard.tsx'
+import { SettingsSecretField as SecretField, SettingsValueField as ValueField } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './fields.module.css'
 import { switchText, type TinyFishCardFace } from './tinyfish-card-controller.ts'
-import type {} from './slot-contract.ts'
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 
 /** Props the renderer binds for the TinyFish card. */
 export type TinyFishCardProps =
-  PropsRuntime<'settings.plugin.item'>
+  PropsRuntime<'plugins.item'>
   & PropsLocale<'settings.plugins'>
   & InjectFace<TinyFishCardFace>
 
@@ -26,12 +26,10 @@ export type TinyFishCardProps =
 export function TinyFishCard(props: TinyFishCardProps) {
   const { t } = props
   const state = props.useTinyFishCard(snapshot => snapshot)
+  if (props.view === 'summary') return t('tinyfishDescription')
   const disabled = !state.writable
   return (
-    <PluginCard
-      t={t}
-      titleKey="tinyfishTitle"
-      descriptionKey="tinyfishDescription"
+    <SettingsForm labels={{ unavailable: t('unavailable'), readOnly: t('readOnly'), saveFailed: t('saveFailed'), save: t('save'), saving: t('saving') }}
       state={state}
       onSave={props.save}
       onDiscard={props.discard}
@@ -74,6 +72,6 @@ export function TinyFishCard(props: TinyFishCardProps) {
         onEdit={(text) => { props.edit('baseURL', text) }}
         onReset={() => { props.resetField('baseURL') }}
       />
-    </PluginCard>
+    </SettingsForm>
   )
 }

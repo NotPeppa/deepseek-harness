@@ -35,6 +35,7 @@ async function bench(options: {
   class RemoteService extends Service {
     constructor(serviceCtx: Context) { super(serviceCtx, 'remote') }
 
+    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- test transport retains the generic Remote stream interface.
     $stream<T>(): AsyncIterable<{ value: T; accept: () => void }> & { dispose: () => Promise<void> } {
       const queue: Array<{ value: T; accept: () => void }> = []
       let wake: (() => void) | undefined
@@ -266,6 +267,6 @@ describe('ui-git-branch browser plugin', () => {
   })
 
   it('keeps the node half inert', () => {
-    expect(nodeApply()).toBeUndefined()
+    expect(nodeApply).not.toThrow()
   })
 })

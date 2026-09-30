@@ -1,43 +1,17 @@
-/** Locale bundles for the plugin configuration section and its plugin cards. */
+/** Locale bundles for the built-in plugins settings section. */
 
-/** Locale keys these surfaces render. */
-export type PluginsSettingsLocaleKey =
-  | 'nav' | 'title' | 'intro' | 'tabs' | 'configurableTab' | 'empty'
-  | 'overridden' | 'reset' | 'readOnly' | 'expand' | 'collapse'
-  | 'save' | 'saving' | 'discard' | 'unsaved' | 'saveFailed' | 'invalidNumber'
-  | 'bashTitle' | 'bashDescription' | 'bashTimeoutMs' | 'bashTimeoutMsHint'
-  | 'bashMaxOutputBytes' | 'bashMaxOutputBytesHint'
-  | 'agentLoopTitle' | 'agentLoopDescription' | 'agentLoopMaxParallel' | 'agentLoopMaxParallelHint'
-  | 'webSearchTitle' | 'webSearchDescription'
-  | 'webSearchApiKey' | 'webSearchApiKeyHint' | 'webSearchApiKeySet' | 'webSearchApiKeyUnset'
-  | 'webSearchBaseUrl' | 'webSearchBaseUrlHint' | 'webSearchMaxUses' | 'webSearchMaxUsesHint'
-  | 'tinyfishTitle' | 'tinyfishDescription'
-  | 'tinyfishApiKey' | 'tinyfishApiKeyHint' | 'tinyfishApiKeySet' | 'tinyfishApiKeyUnset'
-  | 'tinyfishUseForSearch' | 'tinyfishUseForSearchHint'
-  | 'tinyfishBaseUrl' | 'tinyfishBaseUrlHint'
-  | 'planPhaseTitle' | 'planPhaseDescription'
-  | 'planPhasePlanningGroup' | 'planPhaseExecutingGroup'
-  | 'planPhaseModel' | 'planPhaseModelHint'
-  | 'planPhaseReasoningEffort' | 'planPhaseReasoningEffortHint'
-  | 'planPhaseFold' | 'planPhaseFoldHint'
-  | 'planPhaseKeepModel' | 'planPhaseDefaultEffort' | 'planPhaseEffortUnavailable'
-  | 'planPhaseCatalogLoading' | 'planPhaseCatalogFailed' | 'planPhaseCatalogRetry'
-  | 'planPhaseCatalogPartial'
-  | 'subagentModelSelectionTitle' | 'subagentModelSelectionDescription'
-  | 'subagentModelSelectionToggle' | 'subagentModelSelectionChoose' | 'subagentModelSelectionAllowed'
-  | 'subagentModelSelectionLoading' | 'subagentModelSelectionLoadFailed' | 'subagentModelSelectionRetry'
-  | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
-  | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
-  | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
+/** Locale keys the section renders. */
+export type PluginsSettingsLocaleKey = keyof typeof en
 
 /** English copy. */
-export const en: Record<PluginsSettingsLocaleKey, string> = {
-  nav: 'Plugins',
-  title: 'Plugins',
-  intro: 'Configure and inspect the plugins installed in this deployment.',
+export const en = {
+  nav: 'Built-in plugins',
+  title: 'Built-in plugins',
+  intro: 'Inspect the plugins this deployment ships.',
   tabs: 'Plugin views',
+  empty: 'This deployment exposes no plugin views.',
+  unavailable: 'This plugin is not loaded.',
   configurableTab: 'Plugin configuration',
-  empty: 'This deployment exposes no plugin settings.',
   overridden: 'Overridden',
   reset: 'Reset to default',
   readOnly: 'This deployment stores settings read-only.',
@@ -115,12 +89,13 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<PluginsSettingsLocaleKey, string> = {
-  nav: '插件',
-  title: '插件',
-  intro: '配置和查看本部署已安装的插件。',
+  unavailable: '此插件尚未加载',
+  nav: '内置插件',
+  title: '内置插件',
+  intro: '查看内置部署的插件列表',
   tabs: '插件视图',
+  empty: '本部署没有开放任何插件视图。',
   configurableTab: '插件配置',
-  empty: '本部署没有开放任何插件设置。',
   overridden: '已覆盖',
   reset: '恢复默认',
   readOnly: '本部署的设置为只读。',

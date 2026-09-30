@@ -25,7 +25,7 @@ Use `dsh-plan-model-switch` to plan on one model and execute on another. Enterin
 <a id="use-this-package"></a>
 ## Use this package
 
-Choose the two models at any time in **Settings › Plugins › Plugin configuration › Plan and execution models**, then pick the **Plan / execute mode** agent preset when starting a session. The settings card remains visible without an active plan/execute session. Both model fields are dropdowns over the deployment's configured models — the same catalog the Models page reads — with a reasoning-effort choice for models that advertise one. From there the cycle is the ordinary one: `/plan` to enter plan mode, review the plan the agent presents through `exit_plan_mode`, and approve it. The approval is where the model changes.
+Choose the two models at any time in **Settings › Plugins › Plan and execution models**, then pick the **Plan / execute mode** agent preset when starting a session. The settings card remains visible without an active plan/execute session. Both model fields are dropdowns over the deployment's configured models — the same catalog the Models page reads — with a reasoning-effort choice for models that advertise one. From there the cycle is the ordinary one: `/plan` to enter plan mode, review the plan the agent presents through `exit_plan_mode`, and approve it. The approval is where the model changes.
 
 ### When to choose it
 
@@ -110,7 +110,7 @@ Read these pages when the package-level contract is not enough.
 - [Plan mode](../plan-mode/README.md) — the mode this package routes around, its guidance, and the reviewed exit.
 - [Plan package map](../README.md) — the group and each role.
 - [Compaction](../../compaction/compaction/README.md) — the seam the fold replaces its span through.
-- [Agent presets](../../preset/agent-presets/README.md) — how the `plan-execute` preset mounts this row.
+- [Agent presets](../../preset/agent-preset-registry/README.md) — how the `plan-execute` preset mounts this row.
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-plan-model-switch) — every accepted config field and its source declaration.
 
 -----

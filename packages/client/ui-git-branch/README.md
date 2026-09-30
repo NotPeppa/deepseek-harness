@@ -42,8 +42,17 @@ Pick a branch from the list to check it out. A switch git refuses leaves the chi
 
 **Refresh is event-driven, not polled:** on mount, on popover open, after a switch, and on window focus (throttled to 5s). A checkout moved from a terminal is picked up the next time the window is looked at, which is the moment a stale branch would mislead.
 
-<a id="known-limitations-and-deferred-work"></a>
+## Model Experience
+
+None, as the browser controls render Git state for a human and the Host Git tool owns model declarations and results.
+
+#### KV Cache effect
+
+None; this package does not assemble model requests.
+
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - A branch checked out by another worktree can only be reported, not taken — git refuses it, and the manager is where the other checkout is dealt with.
 - Creation is always at a committish; there is no picker for one, only a text field.

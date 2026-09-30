@@ -158,7 +158,7 @@ export function BackgroundRow({
             value={blur}
             onChange={(e) => { setBackgroundBlur(e.currentTarget.valueAsNumber) }}
           />
-          <span className={css.sliderValue}>{blur}px</span>
+          <span className={css.sliderValue}>{blur}{t('fontSize.unit')}</span>
         </label>
         <label className={css.slider}>
           <span className={css.sliderLabel}>{t('background.opacity')}</span>

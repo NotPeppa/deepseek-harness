@@ -25,7 +25,9 @@ kind: "package-reference"
 
 把插件组合进一个提供了 `subprocess` 与 `workspaceRegistry` 的宿主装配，并在客户端 Remote 装配（`packages/api/remotes`）中挂载它生成的 contribution，浏览器侧才会有 `remote.git`。命名空间还必须按名字注入——`inject: ['remote', 'remote.git']`——否则 `ctx.remote.git` 根本不存在。
 
-四个方法：
+响应类型定义见 [`src/types.ts`](src/types.ts)：`GitStatus`、`GitSwitchOutcome`、`GitCheckoutChanged`、`GitWorktree`、`GitWorktreeCreated` 和 `GitWorktreeRemoved`。
+
+分支方法：
 
 - `status(workspaceId)` → `{ repository, current?, branches, remoteBranches }`。`repository: false` 同时覆盖"不是工作树"和"机器上没有 git"。detached HEAD 时 `current` 缺省；远程列表里会滤掉 `origin/HEAD`——它指向的正是同一列表中的另一项。
 - `switchBranch(workspaceId, branch)` → `{ ok, message? }`，用于本地分支。
@@ -53,10 +55,26 @@ kind: "package-reference"
 
 **detached HEAD 不是分支。** 此时 `rev-parse --abbrev-ref HEAD` 返回字面量 `HEAD`；它被报告为"无当前分支"，而不是一个叫 `HEAD` 的分支。
 
-<a id="known-limitations-and-deferred-work"></a>
+## 模型体验
+
+### Tool schema：git_worktree
+
+#### 模型看到什么
+
+模型通过[生成的工具 schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-api-git-controller)列出、创建和删除干净的托管 worktree；结果提供检出与工作区信息。
+
+#### Token 影响
+
+本工具添加一项声明，并在调用时产生操作结果；不贡献提示词章节。
+
+#### KV Cache 影响
+
+工具声明在 worktree 操作期间保持稳定；结果会扩展会话历史。
+
 ## 已知限制与后续工作
 
-- 没有 worktree 操作。
+<a id="known-limitations-and-deferred-work"></a>
+
 - 新建分支总是基于当前 HEAD，无法指定其它基点。
 - 切换是工作区级的，会波及该工作区的每个会话。
 

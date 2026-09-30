@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { SettingsProvider } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
 import WebRuntime, {
-  WEB_SETTINGS_NAMESPACE,
   WebError,
+  type WebRuntimeConfig,
   type WebFetchProvider,
   type WebFetchResult,
   type WebSearchProvider,
@@ -37,7 +36,7 @@ function fetchResult(marker: string): WebFetchResult {
 }
 
 /** Mount a WebRuntime on a fresh root context with the given config. */
-async function mountWeb(config: ConstructorParameters<typeof WebRuntime>[1] = {}): Promise<{ ctx: Context; web: WebRuntime }> {
+async function mountWeb(config: WebRuntimeConfig = {}): Promise<{ ctx: Context; web: WebRuntime }> {
   const ctx = new Context()
   await ctx.plugin(WebRuntime, config)
   return { ctx, web: ctx.web }
@@ -218,29 +217,9 @@ describe('WebError', () => {
 })
 
 describe('WebRuntime settings-driven selection', () => {
-  /** The smallest real provider: one in-memory document, always writable. */
-  class MemorySettings extends SettingsProvider {
-    doc: Record<string, unknown> = {}
-
-    get writable(): boolean {
-      return true
-    }
-
-    protected load(): Promise<Record<string, unknown>> {
-      return Promise.resolve(structuredClone(this.doc))
-    }
-
-    protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-      this.doc = { ...this.doc, [ns]: structuredClone(section) }
-      return Promise.resolve()
-    }
-  }
-
   it('lets the web settings section switch the search provider without a restart', async () => {
     const ctx = new Context()
-    const settings = ctx.plugin(MemorySettings)
-    await settings.await()
-    await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-official' })
+    const config = await liveConfig(ctx, WebRuntime, { searchProvider: 'deepseek-official' })
     ctx.web.registerSearchProvider(
       makeSearchProvider('deepseek-official', available, () => Promise.resolve(searchResult('deepseek'))))
     ctx.web.registerSearchProvider(
@@ -249,11 +228,11 @@ describe('WebRuntime settings-driven selection', () => {
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ content: 'deepseek' })
 
     // What a configuration surface writes when the user picks another backend.
-    await ctx.settings.update(WEB_SETTINGS_NAMESPACE as SettingsNamespace, { searchProvider: 'tinyfish' })
+    await config.update({ searchProvider: 'tinyfish' })
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ content: 'tinyfish' })
 
     // Clearing the field re-inherits the composition entry.
-    await ctx.settings.replace(WEB_SETTINGS_NAMESPACE as SettingsNamespace, {})
+    await config.replace({ searchProvider: 'deepseek-official' })
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ content: 'deepseek' })
     await ctx.fiber.dispose()
   })

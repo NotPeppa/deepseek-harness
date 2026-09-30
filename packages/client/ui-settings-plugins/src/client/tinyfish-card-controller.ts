@@ -13,12 +13,12 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
-  CardForm, textField,
-  type CardActions, type CardFieldState, type CardShell,
-} from './card-form.ts'
+  SettingsFormModel, settingsTextField,
+  type SettingsFormScopeSnapshot, type SettingsFormActions, type SettingsFieldState, type SettingsFormShell,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 
 /**
  * Namespace of the TinyFish search provider. Spelled here rather than
@@ -70,11 +70,11 @@ interface CredentialState {
 }
 
 /** What the TinyFish card renders. */
-export interface TinyFishCardState extends CardShell {
+export interface TinyFishCardState extends SettingsFormShell {
   /** Provider endpoint. */
-  baseURL: CardFieldState
+  baseURL: SettingsFieldState
   /** The staged credential, which starts blank on every load. */
-  apiKey: CardFieldState
+  apiKey: SettingsFieldState
   /** Whether the Host reports a credential configured for the referenced key. */
   apiKeyConfigured: boolean
   /** Whether the credentials domain accepts a write for it; false disables the control. */
@@ -86,7 +86,7 @@ export interface TinyFishCardState extends CardShell {
 }
 
 /** The registration-side face the TinyFish card's slot entry injects. */
-export interface TinyFishCardFace extends CardActions {
+export interface TinyFishCardFace extends SettingsFormActions {
   hooks: {
     /** Card snapshot bound by the renderer as useTinyFishCard. */
     tinyFishCard: SnapshotStore<TinyFishCardState>
@@ -95,7 +95,7 @@ export interface TinyFishCardFace extends CardActions {
 
 /** Bridges the TinyFish scope, the web seam's scope, and the credentials domain onto the card. */
 export class TinyFishCardController {
-  private readonly form: CardForm<TinyFishSettings>
+  private readonly form: SettingsFormModel<TinyFishSettings>
   private readonly store: SnapshotStore<TinyFishCardState>
   private credential: CredentialState = { ref: '', configured: false, writable: true }
 
@@ -106,23 +106,24 @@ export class TinyFishCardController {
    *   answers for the credential the section references.
    */
   constructor(
-    private readonly scope: SettingsScope<TinyFishSettings>,
-    private readonly web: SettingsScope<WebSelectionSettings>,
+    private readonly scope: ConfigForm<TinyFishSettings>,
+    private readonly web: ConfigForm<WebSelectionSettings>,
     private readonly ctx: ClientContext,
   ) {
-    this.form = new CardForm(
+    this.form = new SettingsFormModel(
       scope,
-      [textField('baseURL')],
+      [settingsTextField('baseURL')],
       [
         { field: API_KEY_FIELD, write: text => this.writeKey(text) },
         { field: USE_FOR_SEARCH_FIELD, write: text => this.writeSelection(text) },
       ],
     )
     this.store = this.form.bind(() => this.projection())
-    scope.subscribe(() => { void this.readCredential() })
+    ctx.effect(() => () => { this.form.dispose() })
+    ctx.effect(() => scope.subscribe(() => { void this.readCredential() }))
     // The switch renders the seam's current selection, so a change made
     // elsewhere — another surface, another client — must repaint this card.
-    web.subscribe(() => { this.store.set(this.projection()) })
+    ctx.effect(() => web.subscribe(() => { this.store.set(this.projection()) }))
     void this.readCredential()
   }
 
@@ -224,7 +225,7 @@ export class TinyFishCardController {
  * @param snapshot - the current scope snapshot.
  * @returns the reference to address.
  */
-function refOf(snapshot: SettingsScopeSnapshot<TinyFishSettings>): string {
+function refOf(snapshot: SettingsFormScopeSnapshot<TinyFishSettings>): string {
   const declared = snapshot.value?.apiKeyEnv
   return declared !== undefined && declared.length > 0 ? declared : DEFAULT_API_KEY_REF
 }
@@ -234,11 +235,14 @@ function refOf(snapshot: SettingsScopeSnapshot<TinyFishSettings>): string {
  * @param snapshot - the `web` namespace snapshot.
  * @returns true when its resolved selection names this provider.
  */
-function selectsTinyFish(snapshot: SettingsScopeSnapshot<WebSelectionSettings>): boolean {
+function selectsTinyFish(snapshot: SettingsFormScopeSnapshot<WebSelectionSettings>): boolean {
   return snapshot.value?.searchProvider === TINYFISH_PROVIDER_ID
 }
 
-/** Staged text for a switch position, so the card and the form agree on both states. */
+/** Format a staged switch value.
+ * @param on Whether the switch is enabled.
+ * @returns The form's on or off value.
+ */
 export function switchText(on: boolean): string {
   return on ? SWITCH_ON : SWITCH_OFF
 }

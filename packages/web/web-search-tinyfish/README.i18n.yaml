@@ -1,6 +1,61 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/web/web-search-tinyfish/README.md
-README.md: 64a1778aad50684a34919efa2b356b819d283edb
-README.zh.md: 81f2bc2718d8bf5ca9dd7f49c07168106506c730
+/:
+  en: 945e4925e0e63ead
+  zh: d493e07c61cb00b6
+/deepseek-ai-dsh-web-search-tinyfish:
+  en: 093678a85640893c
+  zh: 7aa0ac705771c954
+/deepseek-ai-dsh-web-search-tinyfish/summary:
+  en: 9a15992ff5f65ae4
+  zh: cc904ffe688f8dbb
+/deepseek-ai-dsh-web-search-tinyfish/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-web-search-tinyfish/use-this-package:
+  en: 1b1cd68b57777cfa
+  zh: 75fdd8a216976e16
+/deepseek-ai-dsh-web-search-tinyfish/use-this-package/when-to-choose-it:
+  en: 6f989b2f814fcc8e
+  zh: 7d85298c92e90ef7
+/deepseek-ai-dsh-web-search-tinyfish/use-this-package/minimal-configuration:
+  en: 4c08d0ea25cd7f21
+  zh: 32d4a0e440511ffa
+/deepseek-ai-dsh-web-search-tinyfish/use-this-package/what-a-search-returns:
+  en: 5acc290496a0346d
+  zh: 71429d271eccb7af
+/deepseek-ai-dsh-web-search-tinyfish/use-this-package/failures-and-recovery:
+  en: 641af67fdb47c86f
+  zh: 0c88d599c7fe53a4
+/deepseek-ai-dsh-web-search-tinyfish/understand-the-implementation:
+  en: 9842c69ad3636bb3
+  zh: 270ad76cdf1538b6
+/deepseek-ai-dsh-web-search-tinyfish/understand-the-implementation/design-philosophy:
+  en: fddd8baa5cae36c2
+  zh: ab0dac935efe9d6f
+/deepseek-ai-dsh-web-search-tinyfish/understand-the-implementation/source-map:
+  en: 40363a24552d0609
+  zh: a85b87e5426d6f41
+/deepseek-ai-dsh-web-search-tinyfish/understand-the-implementation/request-and-mapping-flow:
+  en: 431aea74326acc4a
+  zh: 9214c06aa5104ccf
+/deepseek-ai-dsh-web-search-tinyfish/further-exploration:
+  en: 2f6ab5ccc0aae400
+  zh: 054d2e0267d0f15c
+/deepseek-ai-dsh-web-search-tinyfish/model-experience:
+  en: f9ef999904938004
+  zh: e810ccf53bc4011e
+/deepseek-ai-dsh-web-search-tinyfish/model-experience/kv-cache-effect:
+  en: 40294c1c31b74824
+  zh: 4aa9c22839755a38
+/deepseek-ai-dsh-web-search-tinyfish/known-limitations-and-deferred-work:
+  en: b5ee08fc25b57aa3
+  zh: d1a121fc006c3178
+/deepseek-ai-dsh-web-search-tinyfish/known-limitations-and-deferred-work/dev-note:
+  en: 7f775cc79dbce94b
+  zh: b8e7c5c321dc0cea
+/deepseek-ai-dsh-web-search-tinyfish/known-limitations-and-deferred-work/dev-note/future-fetch-and-the-wider-search-surface:
+  en: 5b147df790f099ae
+  zh: aad863c4edbdd045

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { createUserMessage, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
@@ -15,8 +15,9 @@ import {
   PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
   type Config,
 } from '@deepseek-ai/dsh-plan-model-switch'
-import * as planModelSwitchSettings from '@deepseek-ai/dsh-plan-model-switch/settings'
-import { MemorySettings } from '../../../settings/settings/tests/memory.ts'
+import * as planModelSwitchSettings from '../src/settings.ts'
+import { omitsGeneratedPage } from '../../../settings/settings/tests/live-config.ts'
+const hostRoutes = new WeakMap<Context, Config>()
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
 const PLAN_CONFIG = { section: 'Test plan mode instructions.', maxExecutionAgents: 4 }
@@ -35,6 +36,7 @@ const ROUTES: Config = {
  */
 async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<Context> {
   const ctx = new Context()
+  onTestFinished(async () => { await ctx.fiber.dispose() })
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SessionProjectionRegistry)
@@ -42,8 +44,10 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<C
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
-  await ctx.plugin(MemorySettings)
-  await ctx.plugin(planModelSwitchSettings, config)
+  const choices = Object.assign({}, config)
+  hostRoutes.set(ctx, choices)
+  ctx.provide('settings', { describe: () => [{ ns: PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE, value: choices }], configure: () => () => {} } as never)
+  await ctx.plugin(planModelSwitchSettings)
   await ctx.plugin(PlanModeController, PLAN_CONFIG)
   await ctx.plugin(planModelSwitch, config)
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -72,7 +76,7 @@ function noticeTexts(agent: Agent): string[] {
   return agent.session.snapshotEvents().flatMap((event) => {
     if (event.type !== 'user/message') return []
     const source = event.data.source
-    if (source.kind !== 'plugin' || source.plugin !== 'model-selection') return []
+    if (source.kind !== 'model-selection') return []
     return [event.data.content.filter(block => block.type === 'text').map(block => block.text).join('')]
   })
 }
@@ -83,14 +87,8 @@ function models(requests: readonly GenerateOptions[]): string[] {
 }
 
 describe('plan phase model routing', () => {
-  it('keeps its settings namespace registered independently of the runtime plugin', async () => {
-    const ctx = new Context()
-    await ctx.plugin(MemorySettings)
-    await ctx.plugin(planModelSwitchSettings)
-
-    expect(ctx.settings.describe().find(
-      descriptor => descriptor.ns === PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE,
-    )?.value).toEqual({ foldPlanning: true })
+  it('owns its custom page policy without a runtime session', async () => {
+    await omitsGeneratedPage(ctx => ctx.plugin(planModelSwitchSettings))
   })
 
   it('routes planning and execution to their own models across one plan cycle', async () => {
@@ -115,7 +113,7 @@ describe('plan phase model routing', () => {
       textResponse('Executing it.'),
     ])
     const ctx = await harness(adapter)
-    await ctx.settings.update(PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE, {
+    Object.assign(hostRoutes.get(ctx)!, {
       planningModel: 'saved-planner',
       executingModel: 'saved-executor',
     })
@@ -192,8 +190,8 @@ describe('plan phase model routing', () => {
     expect(models(adapter.requests)).toEqual(['base', 'planner', 'executor'])
     // The reader of a mixed transcript can tell which model wrote what.
     expect(noticeTexts(agent)).toEqual([
-      expect.stringContaining('base') as unknown as string,
-      expect.stringContaining('planner') as unknown as string,
+      expect.stringContaining('base'),
+      expect.stringContaining('planner'),
     ])
     expect(noticeTexts(agent)[0]).toContain('planner')
     expect(noticeTexts(agent)[1]).toContain('executor')

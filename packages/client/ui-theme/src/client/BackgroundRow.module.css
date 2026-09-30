@@ -52,7 +52,7 @@
   align-items: center;
   height: 32px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-module-platform);
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
@@ -75,7 +75,7 @@
   height: 32px;
   padding: 0 12px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   font-size: 13px;
   line-height: 22px;
   color: var(--dsw-alias-label-secondary);
@@ -97,7 +97,7 @@
   height: 32px;
   padding: 0 12px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-module-platform);
   color: var(--dsw-alias-label-primary);
   font-size: 13px;

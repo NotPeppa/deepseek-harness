@@ -1,6 +1,88 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/plan/plan-model-switch/README.md
-README.md: 4b95bb79a5d0a0619bf3f920138149488b425115
-README.zh.md: a9a3bac35953a0d0cce9c931394e03e308da710f
+/:
+  en: 4e96241d0af51840
+  zh: 07000af850a2d624
+/deepseek-ai-dsh-plan-model-switch:
+  en: 553ce84338e8ecde
+  zh: b1b1dbfc9ccfee6c
+/deepseek-ai-dsh-plan-model-switch/summary:
+  en: 56ab1fda0ae822b7
+  zh: 69be4402b96c7a5d
+/deepseek-ai-dsh-plan-model-switch/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-plan-model-switch/use-this-package:
+  en: d8bac008dd524557
+  zh: 9b5e2379ad49afe0
+/deepseek-ai-dsh-plan-model-switch/use-this-package/when-to-choose-it:
+  en: 838aa509c3622851
+  zh: 958eb9172b741094
+/deepseek-ai-dsh-plan-model-switch/use-this-package/minimal-configuration:
+  en: bb1887e9a39f13a4
+  zh: 66df42e0a8213043
+/deepseek-ai-dsh-plan-model-switch/use-this-package/what-switches-and-when:
+  en: e148b862e9965482
+  zh: 51e792b8bdf03e78
+/deepseek-ai-dsh-plan-model-switch/use-this-package/what-the-fold-does:
+  en: 698907e3c4ee1a50
+  zh: 091bb0a7616dff80
+/deepseek-ai-dsh-plan-model-switch/understand-the-implementation:
+  en: bf1727bf9958d82d
+  zh: 275ecec85ca6108d
+/deepseek-ai-dsh-plan-model-switch/understand-the-implementation/design-philosophy:
+  en: 10f124617ebb3e87
+  zh: 1c7887612b30dea5
+/deepseek-ai-dsh-plan-model-switch/understand-the-implementation/source-map:
+  en: 3480abb389e5ea34
+  zh: b41c6a90ecf9b678
+/deepseek-ai-dsh-plan-model-switch/understand-the-implementation/where-the-switch-lands:
+  en: b208b039d59781fa
+  zh: 7c1bb7612f267127
+/deepseek-ai-dsh-plan-model-switch/understand-the-implementation/why-positions-not-sequence-numbers:
+  en: 4c0b09a8e10abed1
+  zh: 6ab529c85c72426a
+/deepseek-ai-dsh-plan-model-switch/further-exploration:
+  en: 9b25677c6ca16420
+  zh: 43b9a2614eaa9a9d
+/deepseek-ai-dsh-plan-model-switch/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-plan-model-switch/model-experience/model-change-notice:
+  en: bff9bc789bf3a720
+  zh: 18b162b29f84ef0c
+/deepseek-ai-dsh-plan-model-switch/model-experience/model-change-notice/what-the-model-sees:
+  en: 45f7818da4945cd0
+  zh: 5e709e283b99ab33
+/deepseek-ai-dsh-plan-model-switch/model-experience/model-change-notice/token-effect:
+  en: 9f3c123297c4d9f3
+  zh: 9c4f8d009ae328bc
+/deepseek-ai-dsh-plan-model-switch/model-experience/model-change-notice/kv-cache-effect:
+  en: e58d5b44e791ea26
+  zh: 9892c0b1b57131dd
+/deepseek-ai-dsh-plan-model-switch/model-experience/folded-planning-history:
+  en: 6f92b2b87a144f67
+  zh: b80eab35e48c640b
+/deepseek-ai-dsh-plan-model-switch/model-experience/folded-planning-history/what-the-model-sees:
+  en: d0ad31eda0ba5131
+  zh: 11dd201a7ce259bb
+/deepseek-ai-dsh-plan-model-switch/model-experience/folded-planning-history/token-effect:
+  en: c80bb23e5a6b2c42
+  zh: 3862d8d45fbf659b
+/deepseek-ai-dsh-plan-model-switch/model-experience/folded-planning-history/kv-cache-effect:
+  en: abaedd1f979736e1
+  zh: b532cf29c091f25f
+/deepseek-ai-dsh-plan-model-switch/known-limitations-and-deferred-work:
+  en: 2bec671e500838a1
+  zh: 206a3ab593f089d0
+/deepseek-ai-dsh-plan-model-switch/known-limitations-and-deferred-work/dev-note:
+  en: 64ee46559b704be8
+  zh: d7dc1b8467048670
+/deepseek-ai-dsh-plan-model-switch/known-limitations-and-deferred-work/dev-note/future-routing-the-summarization-call:
+  en: 4e37b1b639010fd6
+  zh: d944d2c954f1bd9e
+/deepseek-ai-dsh-plan-model-switch/known-limitations-and-deferred-work/dev-note/future-phases-beyond-plan-mode:
+  en: 7e658b854d6b5f40
+  zh: 036f4c0b83a99d8b

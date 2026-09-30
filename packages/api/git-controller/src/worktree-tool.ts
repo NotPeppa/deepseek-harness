@@ -45,6 +45,7 @@ export function registerWorktreeTool(ctx: Context, git: GitController): void {
       parameters: {
         operation: {
           type: 'string',
+          enum: ['list', 'create', 'remove'],
           required: true,
           description: 'One of: list, create, remove.',
         },
@@ -109,7 +110,7 @@ export function registerWorktreeTool(ctx: Context, git: GitController): void {
               + 'Open a new session there to work in it; this session stays where it is.',
           }
         }
-        if (args.operation === 'remove') {
+        {
           if (args.path === undefined || args.path === '') {
             return { summary: 'git_worktree remove: `path` is required.' }
           }
@@ -124,7 +125,6 @@ export function registerWorktreeTool(ctx: Context, git: GitController): void {
           }
           return { summary: `git_worktree remove refused: ${removed.message ?? 'unknown reason'}` }
         }
-        return { summary: `git_worktree: unknown operation '${String(args.operation)}'.` }
       },
     }))
   })

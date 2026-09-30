@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-随时可以在 **设置 › 插件 › 插件配置 › 规划与执行模型** 里选择两个模型，然后在新建会话时选择 **计划/执行模式** 预设。即使没有活跃的计划/执行会话，这张设置卡也始终可见。两个模型字段都是下拉框，取自本部署已配置的模型目录（与模型页面同源）；模型若声明了推理强度，还会多一个强度下拉。之后就是普通流程：`/plan` 进入计划模式，审阅 Agent 通过 `exit_plan_mode` 提交的计划，批准它。模型正是在批准那一刻切换的。
+随时可以在 **设置 › 插件 › 规划与执行模型** 里选择两个模型，然后在新建会话时选择 **计划/执行模式** 预设。即使没有活跃的计划/执行会话，这张设置卡也始终可见。两个模型字段都是下拉框，取自本部署已配置的模型目录（与模型页面同源）；模型若声明了推理强度，还会多一个强度下拉。之后就是普通流程：`/plan` 进入计划模式，审阅 Agent 通过 `exit_plan_mode` 提交的计划，批准它。模型正是在批准那一刻切换的。
 
 ### 何时选择
 
@@ -110,7 +110,7 @@ Agent 循环先组装提示词，然后开启 `agent/pre-step` 瀑布——计�
 - [计划模式](../plan-mode/README.zh.md)——本包围绕其路由的模式、它的指导与审阅式退出。
 - [Plan 包地图](../README.zh.md)——本组与各自角色。
 - [Compaction](../../compaction/compaction/README.zh.md)——折叠替换跨度所经的 seam。
-- [Agent 预设](../../preset/agent-presets/README.zh.md)——`plan-execute` 预设如何挂载此行。
+- [Agent 预设](../../preset/agent-preset-registry/README.zh.md)——`plan-execute` 预设如何挂载此行。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-plan-model-switch)——所有可接受配置字段及其来源声明。
 
 -----

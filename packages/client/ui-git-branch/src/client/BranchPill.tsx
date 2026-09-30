@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { IconBranchOutline16, IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { MenuSurface, IconBranchOutlineRegular, IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { WorktreeDialog } from './WorktreeDialog.tsx'
 import type { createBranchStore } from './store.ts'
@@ -202,15 +202,15 @@ export function BranchPill({
           }
         }}
       >
-        <IconBranchOutline16 className={css.icon} size={16} />
+        <IconBranchOutlineRegular className={css.icon} size={16} />
         <span className={css.name}>
           {busy ? t('branch.switching') : current === '' ? t('branch.none') : current}
         </span>
-        <IconChevronDownOutline14 className={css.chevron} size={12} />
+        <IconChevronDownOutlineRegular className={css.chevron} size={12} />
       </button>
       {open
         ? (
-          <div className={css.popover} role="listbox">
+          <MenuSurface className={css.popover} role="listbox">
             <input
               className={css.search}
               type="search"
@@ -295,7 +295,7 @@ export function BranchPill({
                   </button>
                 </>
               )}
-          </div>
+          </MenuSurface>
         )
         : null}
       <WorktreeDialog

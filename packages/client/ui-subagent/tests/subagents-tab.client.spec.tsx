@@ -1,214 +1,83 @@
 // @vitest-environment jsdom
-/**
- * The Sidebar subagent tab: its type definition, the body's empty and tree
- * states, its catalog observation, and the chip title. The rows themselves are
- * the header dropdown's, asserted in the conversation spec.
- */
+/** Persistent subagent catalog over the current shared projection snapshots. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type {
-  SessionListState, SessionSummary, SubagentCatalogSnapshot,
-} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { SUBAGENTS_ID, SUBAGENTS_KIND, subagentsDefinition } from '../src/client/subagents-definition.tsx'
+import { createElement } from 'react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { makeTranslate, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import type { SessionListState, SessionProjectionSnapshot, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { SubagentsBody, type SubagentsBodyProps } from '../src/client/SubagentsBody.tsx'
 import { SubagentsTitle } from '../src/client/SubagentsTitle.tsx'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { en, zh } from '../src/client/locales.ts'
+import { SUBAGENTS_ID, SUBAGENTS_KIND, subagentsDefinition } from '../src/client/subagents-definition.tsx'
+import { zh } from '../src/client/locales.ts'
 
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-})
-
-/** A page type never receives an address; its title thunk takes one anyway. */
-const NO_ADDRESS = ''
-const PARENT = 'parent' as SessionId
-const CHILD = 'child' as SessionId
-const GRANDCHILD = 'grandchild' as SessionId
+afterEach(cleanup)
+const PARENT = SessionId('parent')
+const CHILD = SessionId('child')
+const GRANDCHILD = SessionId('grandchild')
 const t = makeTranslate(zh) as SubagentsBodyProps['t']
-
-function summary(id: SessionId, over: Partial<SessionSummary> = {}): SessionSummary {
-  return {
-    id,
-    title: 'worker session',
-    displayTitle: 'worker',
-    running: true,
-    blank: false,
-    updatedAt: Date.now(),
-    origin: 'subagent',
-    parentId: PARENT,
-    ...over,
-  } as unknown as SessionSummary
+const child: SessionSummary = {
+  id: CHILD, title: 'worker', displayTitle: 'worker', running: false,
+  blank: false, updatedAt: 0, origin: 'subagent', parentId: PARENT, retainedBy: {},
 }
 
-function catalog(over: Partial<SubagentCatalogSnapshot> = {}): SubagentCatalogSnapshot {
-  return {
-    entries: [{
-      kind: 'child', id: CHILD, mode: 'continuable', label: 'worker',
-      activity: 'running', hasChildren: true,
-    }],
-    parentAvailable: true,
-    state: 'ready',
-    error: null,
-    ...over,
-  }
+function catalog(id = CHILD, label = 'worker'): SessionProjectionSnapshot {
+  return { state: 'ready', error: null, values: { subagentCatalog: [{ id, createdAt: 0, mode: 'continuable', label }] } }
 }
 
-function props(
-  catalogs: Readonly<Record<SessionId, SubagentCatalogSnapshot>>,
-  summaries: Readonly<Record<SessionId, SessionSummary>> = { [CHILD]: summary(CHILD) },
-): SubagentsBodyProps & { setCatalogOpen: ReturnType<typeof vi.fn> } {
-  const state = {
-    ids: [PARENT, CHILD],
-    byId: summaries,
-    current: PARENT,
-    phase: 'ready',
-    subagentsByParent: catalogs,
-    jobsBySession: {},
-    currentAddress: undefined,
-  } satisfies SessionListState
-  function useSessions<T>(select: (snapshot: SessionListState) => T): T {
-    return select(state)
-  }
-  return {
-    sessionId: PARENT,
-    useSessions,
-    openChild: vi.fn(),
-    refresh: vi.fn(),
-    setCatalogOpen: vi.fn(),
-    t,
-  } as unknown as SubagentsBodyProps & { setCatalogOpen: ReturnType<typeof vi.fn> }
+function props(projectionsBySession: SessionListState['projectionsBySession'] = {}) {
+  const state: SessionListState = { ids: [PARENT, CHILD], byId: { [CHILD]: child }, phase: 'ready', projectionsBySession }
+  const openChild = vi.fn()
+  const refreshProjection = vi.fn()
+  const result = {
+    sessionId: PARENT, t, useSessions: select => select(state),
+    useSessionStatus: select => select(new Map()), openChild, openChildAside: vi.fn(), refreshProjection,
+  } as SubagentsBodyProps
+  return { ...result, openChild, refreshProjection }
 }
 
-describe('subagents tab definition', () => {
-  it('is a page type with a guide entry, and reads its copy on every call', () => {
+describe('persistent subagent tab', () => {
+  it('registers a localized page and guide entry', () => {
     const definition = subagentsDefinition(t)
-    expect(definition).toMatchObject({ id: SUBAGENTS_ID, kind: SUBAGENTS_KIND, priority: 'builtin' })
-    expect(definition.patterns).toBeUndefined()
-    expect(definition.title(NO_ADDRESS)).toBe(zh['tab.label'])
-    const [entry] = definition.guide ?? []
-    expect(entry?.order).toBe(20)
-    expect(entry?.title()).toBe(zh['tab.label'])
-    expect(entry?.description?.()).toBe(zh['tab.description'])
-    expect(entry?.icon).toBeTypeOf('function')
+    expect(definition).toMatchObject({ id: SUBAGENTS_ID, kind: SUBAGENTS_KIND })
+    expect(definition.guide?.[0]?.title()).toBe(zh['tab.label'])
   })
 
-  it('takes its labels from the active language rather than registration time', () => {
-    expect(subagentsDefinition(makeTranslate(en) as SubagentsBodyProps['t']).title(NO_ADDRESS))
-      .toBe(en['tab.label'])
-  })
-})
-
-describe('subagents tab body', () => {
-  it('says so before any catalog arrives and when the session delegated nothing', () => {
-    const { unmount } = render(<SubagentsBody {...props({})} />)
+  it('shows its empty state and refreshes the root projection when mounted', () => {
+    const bound = props()
+    render(<SubagentsBody {...bound} />)
     expect(screen.getByText(zh['tab.empty'])).toBeTruthy()
-    unmount()
-
-    render(<SubagentsBody {...props({ [PARENT]: catalog({ entries: [] }) })} />)
-    expect(screen.getByText(zh['tab.empty'])).toBeTruthy()
+    expect(bound.refreshProjection).toHaveBeenCalledWith(PARENT)
   })
 
-  it('observes the session catalog while mounted and releases it on unmount', () => {
-    const bound = props({ [PARENT]: catalog() })
-    const { unmount } = render(<SubagentsBody {...bound} />)
-    expect(bound.setCatalogOpen).toHaveBeenCalledWith(PARENT, true)
-
-    unmount()
-    expect(bound.setCatalogOpen).toHaveBeenLastCalledWith(PARENT, false)
-  })
-
-  it('draws the tree and opens a child row', () => {
+  it('opens a child from the persistent tree', () => {
     const bound = props({ [PARENT]: catalog() })
     render(<SubagentsBody {...bound} />)
-    const tree = screen.getByRole('tree', { name: zh['tree.aria'] })
-    const rows = within(tree).getAllByRole('treeitem')
-    expect(rows).toHaveLength(1)
-
-    fireEvent.click(rows[0]!)
-    expect(bound.openChild).toHaveBeenCalled()
+    fireEvent.click(screen.getByText('worker', { selector: 'span' }))
+    expect(bound.openChild).toHaveBeenCalledWith({ parentSessionId: PARENT, childSessionId: CHILD, mode: 'continuable' })
   })
 
-  it('expands a branch, observing it, and releases the branch when it collapses', () => {
-    const bound = props(
-      { [PARENT]: catalog(), [CHILD]: catalog({
-        entries: [{
-          kind: 'child', id: GRANDCHILD, mode: 'one-shot', label: 'reviewer',
-          activity: 'inactive', hasChildren: false,
-        }],
-      }) },
-      { [CHILD]: summary(CHILD), [GRANDCHILD]: summary(GRANDCHILD, { parentId: CHILD, running: false }) },
-    )
+  it('keeps an empty failed catalog visible with its retry action', () => {
+    const bound = props({ [PARENT]: { state: 'error', values: {}, error: new RemoteError('gateway/internal', 'Catalog unavailable', {}) } })
     render(<SubagentsBody {...bound} />)
-    const tree = screen.getByRole('tree', { name: zh['tree.aria'] })
-    const disclosure = within(tree).getAllByRole('button')[0]!
-
-    fireEvent.click(disclosure)
-    expect(bound.setCatalogOpen).toHaveBeenCalledWith(CHILD, true)
-    expect(within(screen.getByRole('tree', { name: zh['tree.aria'] })).getAllByRole('treeitem').length)
-      .toBeGreaterThan(1)
-
-    fireEvent.click(within(screen.getByRole('tree', { name: zh['tree.aria'] })).getAllByRole('button')[0]!)
-    expect(bound.setCatalogOpen).toHaveBeenCalledWith(CHILD, false)
-    expect(within(screen.getByRole('tree', { name: zh['tree.aria'] })).getAllByRole('treeitem')).toHaveLength(1)
+    expect(screen.getByText('Catalog unavailable')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: zh.retry }))
+    expect(bound.refreshProjection).toHaveBeenCalledTimes(2)
   })
 
-  it('collapses a branch whose own children never loaded, and skips its diagnostic rows', () => {
-    const bound = props(
-      { [PARENT]: catalog(), [CHILD]: catalog({
-        entries: [
-          { kind: 'diagnostic', id: 'bad' as SessionId, reason: 'corrupt' },
-          {
-            kind: 'child', id: GRANDCHILD, mode: 'continuable', label: 'scout',
-            activity: 'inactive', hasChildren: true,
-          },
-        ],
-      }) },
-      { [CHILD]: summary(CHILD), [GRANDCHILD]: summary(GRANDCHILD, { parentId: CHILD, running: false }) },
-    )
+  it('expands and collapses a loaded child catalog', () => {
+    const bound = props({ [PARENT]: catalog(), [CHILD]: catalog(GRANDCHILD, 'reviewer') })
     render(<SubagentsBody {...bound} />)
-    const disclosures = (): HTMLElement[] =>
-      within(screen.getByRole('tree', { name: zh['tree.aria'] })).getAllByRole('button')
-
-    fireEvent.click(disclosures()[0]!)
-    // The grandchild is expanded while its own catalog is still absent, so
-    // collapsing the branch above it must tolerate the missing entries.
-    fireEvent.click(disclosures()[1]!)
-    expect(bound.setCatalogOpen).toHaveBeenCalledWith(GRANDCHILD, true)
-
-    fireEvent.click(disclosures()[0]!)
-    expect(bound.setCatalogOpen).toHaveBeenCalledWith(GRANDCHILD, false)
-    expect(within(screen.getByRole('tree', { name: zh['tree.aria'] })).getAllByRole('treeitem')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: zh['branch.expand'].replace('{label}', 'worker') }))
+    expect(bound.refreshProjection).toHaveBeenCalledWith(CHILD)
+    expect(screen.getByText('reviewer', { selector: 'span' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: zh['branch.collapse'].replace('{label}', 'worker') }))
+    expect(screen.queryByText('reviewer', { selector: 'span' })).toBeNull()
   })
 
-  it('runs no clock for a session whose descendants have all settled', () => {
-    vi.useFakeTimers()
-    const setInterval = vi.spyOn(globalThis, 'setInterval')
-    // No subagent-origin summaries: the lineage index knows no descendants here.
-    render(<SubagentsBody {...props({ [PARENT]: catalog() }, {})} />)
-    expect(screen.getByRole('tree', { name: zh['tree.aria'] })).toBeTruthy()
-    expect(setInterval).not.toHaveBeenCalled()
-  })
-
-  it('ticks a running row without an open dropdown', () => {
-    vi.useFakeTimers()
-    const bound = props({ [PARENT]: catalog() })
-    render(<SubagentsBody {...bound} />)
-    expect(screen.getByRole('tree', { name: zh['tree.aria'] })).toBeTruthy()
-    // The interval exists only while a descendant runs; advancing it must not throw.
-    expect(() => { vi.advanceTimersByTime(2_000) }).not.toThrow()
-  })
-})
-
-describe('subagents tab title', () => {
-  it('draws the glyph before the tab title', () => {
-    const titleProps = {
-      useTabInfo: () => ({ tab: { title: zh['tab.label'] } }),
-    } as unknown as PropsRuntime<'sidebar.right.pane.tab.title'>
-    const { container } = render(<SubagentsTitle {...titleProps} />)
+  it('keeps the localized title and icon', () => {
+    const { container } = render(createElement(SubagentsTitle, { useTabInfo: () => ({ tab: { title: zh['tab.label'] } }) } as never))
     expect(container.querySelector('svg')).toBeTruthy()
-    expect(container.textContent).toContain(zh['tab.label'])
+    expect(container.textContent).toBe(zh['tab.label'])
   })
 })

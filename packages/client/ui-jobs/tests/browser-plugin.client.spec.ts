@@ -1,17 +1,20 @@
 /**
- * ui-job plugin halves: the browser entry's dictionary and header-slot
+ * ui-jobs plugin halves: the browser entry's dictionary and header-slot
  * registrations against the real SlotRegistry (with fiber teardown proving
  * removal — HMR safety), and the inert node entry.
  */
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { JobId } from '@deepseek-ai/dsh-jobs/brand'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '../src/client/index.ts'
+import type { JobListInjected } from '../src/client/JobListAction.tsx'
 import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
-import { JOBS_ID } from '../src/client/definition.tsx'
 
 /** Slot ledger reader: entry ids currently registered in the header list. */
 function headerEntryIds(ctx: Context): (string | undefined)[] {
@@ -20,12 +23,18 @@ function headerEntryIds(ctx: Context): (string | undefined)[] {
     .map(entry => entry.options.id)
 }
 
+/** Observation requests handed to the stubbed jobs service. */
+const observed: [string | undefined, string][] = []
+/** Roster watches handed to the stubbed jobs service. */
+const watched: string[] = []
+
+/** Job ids the stubbed bound session was asked to kill, and its scripted result. */
+const kills: [string, string][] = []
+let killResult: { ok: boolean } = { ok: true }
+
 /** Boot the browser half over a real slot tree that declares the header list. */
-async function bench(
-  sidebar = true,
-): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']>; registered: string[] }> {
+async function bench(): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']> }> {
   const ctx = new Context()
-  const registered: string[] = []
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
     name: 'root',
@@ -35,20 +44,26 @@ async function bench(
       'sidebar.right.pane.tab.title': { kind: 'keyed', scope: 'session' },
     },
   } as never, () => null)
-  ctx.provide('sessions', {})
-  if (sidebar) {
-    ctx.provide('sidebarRightTabs', {
-      register: (definition: { id: string }) => {
-        registered.push(definition.id)
-        return () => { registered.splice(registered.indexOf(definition.id), 1) }
-      },
-    } as never)
-  }
+  ctx.provide('jobs', {
+    state: { getSnapshot: () => ({ rows: {}, observed: {} }), subscribe: () => () => {} },
+    watchRows: (sessionId: string) => {
+      watched.push(sessionId)
+      return () => {}
+    },
+    observe: (sessionId: string | undefined, id: string) => {
+      observed.push([sessionId, id])
+      return () => {}
+    },
+    kill: async (sessionId: string, jobId: string) => {
+      kills.push([sessionId, jobId])
+      return killResult
+    },
+  } as never)
   // The locale plugin binds a settings scope, which reads the connection handle
   // and the forwarded-event port.
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
   ctx.provide('remote', { $on: () => () => {} } as never)
-  ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   // These specs assert the shipped Chinese copy. There is no jsdom `window` in
   // this lane, so browser-language detection never runs and the locale comes
@@ -56,12 +71,37 @@ async function bench(
   ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, fiber, registered }
+  return { ctx, fiber }
 }
 
-describe('ui-job browser half', () => {
+describe('ui-jobs browser half', () => {
   it('declares the services it binds', () => {
-    expect(inject).toEqual(['sessions', 'slots', 'locale'])
+    expect(inject).toEqual(['jobs', 'slots', 'locale'])
+  })
+
+  it('exposes the jobs source and the roster, observation, and kill controls through the inject face', async () => {
+    const { ctx } = await bench()
+    const entry = ctx.slots
+      .entries('conversation.session.header.actions')
+      .find(candidate => candidate.options.id === 'job-list')
+    const inject = entry?.inject as (() => JobListInjected) | undefined
+    if (inject === undefined) throw new Error('job-list entry registered no inject face')
+    const face = inject()
+    expect(face.hooks.jobs).toBeDefined()
+    const release = face.watchRows(SessionId('session'))
+    expect(watched).toEqual(['session'])
+    release()
+    const stopper = face.observe(SessionId('session'), JobId('bash-1'))
+    expect(observed).toEqual([['session', 'bash-1']])
+    stopper()
+
+    // The kill control routes through the job service with the row's session
+    // and reports the admission verdict.
+    killResult = { ok: true }
+    await expect(face.killJob(SessionId('sess-live'), 'bash-3')).resolves.toBe(true)
+    killResult = { ok: false }
+    await expect(face.killJob(SessionId('sess-live'), 'bash-4')).resolves.toBe(false)
+    expect(kills).toEqual([['sess-live', 'bash-3'], ['sess-live', 'bash-4']])
   })
 
   it('registers the header action, and fiber teardown removes it (HMR safety)', async () => {
@@ -69,25 +109,6 @@ describe('ui-job browser half', () => {
     expect(headerEntryIds(ctx)).toContain('job-list')
     await fiber.dispose()
     expect(headerEntryIds(ctx)).not.toContain('job-list')
-  })
-
-  it('registers the Sidebar tab type, body, and title, and releases them with the fiber', async () => {
-    const { ctx, fiber, registered } = await bench()
-    expect(registered).toEqual([JOBS_ID])
-    const keys = (name: 'sidebar.right.pane.tab' | 'sidebar.right.pane.tab.title'): unknown[] =>
-      ctx.slots.entries(name).map(entry => entry.options.key)
-    expect(keys('sidebar.right.pane.tab')).toContain(JOBS_ID)
-    expect(keys('sidebar.right.pane.tab.title')).toContain(JOBS_ID)
-
-    await fiber.dispose()
-    expect(registered).toEqual([])
-    expect(keys('sidebar.right.pane.tab')).not.toContain(JOBS_ID)
-  })
-
-  it('keeps the header action when no right Sidebar is composed', async () => {
-    const { ctx } = await bench(false)
-    expect(headerEntryIds(ctx)).toContain('job-list')
-    expect(ctx.slots.entries('sidebar.right.pane.tab')).toHaveLength(0)
   })
 
   it('registers both dictionaries under its own namespace and releases them with the fiber', async () => {
@@ -107,9 +128,22 @@ describe('ui-job browser half', () => {
   })
 })
 
-describe('ui-job node half', () => {
+describe('ui-jobs node half', () => {
   it('contributes no host behavior', () => {
     // The node half exists only so the plugin appears in the Loader tree.
     expect(applyNode).not.toThrow()
   })
+})
+
+it('removes the optional sidebar registration and seats on disposal', async () => {
+  const { ctx } = await bench()
+  const registered: string[] = []
+  ctx.provide('sidebarRightTabs', { register: (definition: { id: string }) => {
+    registered.push(definition.id)
+    return () => { registered.splice(registered.indexOf(definition.id), 1) }
+  } } as never)
+  await vi.waitFor(() => { expect(registered).toEqual(['@deepseek-ai/dsh-client-ui-jobs']) })
+  expect(ctx.slots.entries('sidebar.right.pane.tab')).toHaveLength(1)
+  await ctx.fiber.dispose()
+  expect(registered).toEqual([])
 })

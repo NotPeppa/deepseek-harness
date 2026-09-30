@@ -4,7 +4,7 @@
  * show the bare label.
  */
 import type { ReactNode } from 'react'
-import { IconAgentPresetOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconAgentPresetOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './SubagentsBody.module.css'
 
@@ -17,7 +17,7 @@ export function SubagentsTitle({ useTabInfo }: PropsRuntime<'sidebar.right.pane.
   const { tab } = useTabInfo()
   return (
     <>
-      <IconAgentPresetOutline16 size={16} className={css.titleIcon} />
+      <IconAgentPresetOutlineRegular size={16} className={css.titleIcon} />
       {tab.title}
     </>
   )
