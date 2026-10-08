@@ -76,6 +76,11 @@ describe.skipIf(webSnapshotMode() === 'record')('historical preset restoration t
       expect(resolved.agent.session.snapshotEvents()
         .filter(event => event.type === 'agent-preset/selected')
         .map(event => event.data.agentPreset)).toEqual(withSelections ? ['ptc', 'standard', 'ptc'] : [])
+      expect(await scaffold.ctx.agentPresets.resolve('plan-execute')).toMatchInlineSnapshot(`
+        {
+          "id": "plan-execute",
+        }
+      `)
       expect(await scaffold.ctx.subagents.listChildren(id)).toEqual([
         { id: brokenId, createdAt: childFixture[0]?.['createdAt'], mode: 'unknown' },
         { id: childId, createdAt: childFixture[0]?.['createdAt'], mode: 'one-shot', label: 'historical child' },

@@ -2257,7 +2257,7 @@ export interface PlanModeConfig {
 
 ## `@deepseek-ai/dsh-plan-model-switch`
 
-- `inject`: `planMode` · `sessionProjections`
+- `inject`: `sessionProjections`
 - `source`: [`packages/plan/plan-model-switch/src/index.ts:48`](../packages/plan/plan-model-switch/src/index.ts)
 
 ```ts config-catalog

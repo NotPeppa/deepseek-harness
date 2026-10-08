@@ -33,7 +33,7 @@ Choose phase routing when the two phases genuinely want different models — a s
 
 ### Minimal configuration
 
-Base-backed profiles mount `@deepseek-ai/dsh-plan-model-switch/settings` on the Host, which owns the durable settings namespace. Mount the runtime row inside an agent composition that already has plan mode. Routes are left to the settings section rather than inlined, because which models a deployment holds is not a fact a shipped composition knows.
+Base-backed profiles mount `@deepseek-ai/dsh-plan-model-switch/settings` on the Host, which owns the durable settings namespace. Mount the runtime row inside an agent composition that already has plan mode. Routing reads the logged plan state through `sessionProjections`, so the plan controller can use a separate service isolation realm. Routes are left to the settings section rather than inlined, because which models a deployment holds is not a fact a shipped composition knows.
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'

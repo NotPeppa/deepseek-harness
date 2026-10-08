@@ -43,7 +43,7 @@ describe('highlightToHtml', () => {
     'yaml', 'toml', 'ini', 'md', 'mdx', 'html', 'css', 'scss', 'less', 'sql',
     'xml', 'lua',
     'fish', 'dotenv', 'log', 'csv', 'diff', 'http', 'rst', 'latex', 'bibtex',
-    'asciidoc', 'bat', 'powershell', 'r', 'julia', 'dart', 'scala', 'clojure',
+    'asciidoc', 'bat', 'cmd', 'powershell', 'pwsh', 'r', 'julia', 'dart', 'scala', 'clojure',
     'erlang', 'elixir', 'haskell', 'fsharp', 'vb', 'perl', 'verilog',
     'system-verilog', 'graphql', 'proto', 'hcl', 'nix', 'vue', 'svelte', 'make',
     'cmake', 'groovy',

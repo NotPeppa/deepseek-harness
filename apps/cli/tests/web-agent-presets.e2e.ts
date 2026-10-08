@@ -242,12 +242,27 @@ describe('the shipped Web composition', () => {
     }
   })
 
-  it('supplies both shipped presets, and only those, from the system root', async () => {
+  it('supplies every shipped preset without activation failures from the system root', async () => {
     const listed = await ctx.agentPresets.list()
 
-    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'ptc', 'standard'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'plan-execute', 'ptc', 'standard'])
+    expect(listed.filter(preset => preset.broken !== undefined)).toEqual([])
     expect(listed.every(preset => !('path' in preset))).toBe(true)
     expect(ctx.agentPresets.defaultId).toBe('standard')
+  })
+
+  it('mounts plan/execute while its plan controller remains isolated from the Host', async () => {
+    expect(ctx.get('planMode')).toBeUndefined()
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('preset-plan-execute'),
+      setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'plan-execute').then(() => undefined),
+    })
+    try {
+      expect(ctx.agentPresets.serviceFor(handle.agent, 'planMode')).toBeDefined()
+      expect(toolNames(ctx, handle.agent)).toContain('exit_plan_mode')
+    } finally {
+      await handle.dispose()
+    }
   })
 
   it('composes the full agent from `standard`', async () => {

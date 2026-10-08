@@ -10,7 +10,8 @@
  * catalogs, root panes, and effort panes move focus between rows. Escape and Shift+Tab leave a drilled pane first and otherwise close
  * back to the trigger. A drilled pane focuses the current effort or model
  * search field. Provider headings paint their background only while pinned
- * by scrolling. Clearing a query restores the full list and search focus.
+ * by scrolling. Provider groups start collapsed on every opening; search
+ * reveals matching models. Clearing a query restores the group folds and search focus.
  * Selecting restores trigger focus without a ring until the trigger loses focus
  * or the menu reopens. Model names match a case-insensitive ordered subsequence
  * within each provider group, ranked by
@@ -72,7 +73,7 @@ export function ModelSelect(
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane>('root')
   const [query, setQuery] = useState('')
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
   const [selectionFocus, setSelectionFocus] = useState(false)
   // The in-menu error strip serves catalog loads (its Retry re-runs the
@@ -108,9 +109,9 @@ export function ModelSelect(
   const filteredGroups = useMemo(() => groups.map(group => ({
     ...group, models: rankByName(group.models, showSearch ? query.trim() : ''),
   })).filter(group => group.models.length > 0), [groups, query, showSearch])
-  const visibleModels = useMemo(() => filteredGroups.filter(group => query.trim() !== '' || !collapsed.has(group.id)).flatMap(group => group.models.map(model => ({
+  const visibleModels = useMemo(() => filteredGroups.filter(group => query.trim() !== '' || expanded.has(group.id)).flatMap(group => group.models.map(model => ({
     provider: group.id, model: model.id,
-  }))), [filteredGroups, collapsed, query])
+  }))), [filteredGroups, expanded, query])
   const currentVisibleIndex = visibleModels.findIndex(model =>
     model.provider === state.current?.provider && model.model === state.current.model)
   const activeModelIndex = Math.min(highlightedIndex ?? Math.max(0, currentVisibleIndex), visibleModels.length - 1)
@@ -183,6 +184,7 @@ export function ModelSelect(
       // first row.
       const checked = menuRef.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]:not([disabled])')
       const target = checked ?? itemRefs.current.find(item => item !== null && !item.disabled)
+        ?? menuRef.current?.querySelector<HTMLButtonElement>('[data-menu-group-heading]')
       // Rows a selection in flight disabled cannot take the keyboard; the
       // trigger does, so the card's keys still reach the menu.
       ;(target ?? triggerRef.current)?.focus()
@@ -190,7 +192,7 @@ export function ModelSelect(
     }
     const cell = itemRefs.current[intent === 'effort' ? 1 : 0]
     ;(cell !== null && cell !== undefined && !cell.disabled ? cell : triggerRef.current)?.focus()
-  }, [open, pane, showSearch])
+  }, [open, pane, showSearch, expanded])
 
   useEffect(() => {
     const viewport = groupsRef.current
@@ -235,13 +237,13 @@ export function ModelSelect(
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
-  }, [open, pane, state, query, collapsed])
+  }, [open, pane, state, query, expanded])
   /* jscpd:ignore-end */
 
   if (!available) return null
 
   const show = (): void => {
-    setCollapsed(new Set())
+    setExpanded(new Set())
     setSelectionFocus(false)
     triggerRef.current?.focus()
     setQuery('')
@@ -282,7 +284,8 @@ export function ModelSelect(
   }
 
   const moveFocus = (offset: number): void => {
-    const items = itemRefs.current.filter(item => item !== null)
+    const rows = itemRefs.current.filter(item => item !== null)
+    const items = rows.length > 0 ? rows : [...menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-menu-group-heading]') ?? []]
     if (items.length === 0) return
     const active = items.findIndex(item => item === document.activeElement)
     // Focus outside the rows (the trigger, which keeps it while the menu
@@ -337,7 +340,8 @@ export function ModelSelect(
       // so the keystroke stays unconsumed there.
       const focused = document.activeElement
       const rows = itemRefs.current.filter((item): item is HTMLButtonElement => item !== null)
-      if (focused instanceof HTMLButtonElement && rows.includes(focused)) {
+      if (focused instanceof HTMLButtonElement && (rows.includes(focused)
+        || menuRef.current?.contains(focused) === true && focused.matches('[data-menu-group-heading]'))) {
         event.preventDefault()
         focused.click()
         return
@@ -561,9 +565,10 @@ export function ModelSelect(
                 {filteredGroups.map((group) => {
                   return (
                     <MenuGroup key={group.id} label={group.id === 'deepseek-account' ? t('provider.account') : group.name}
-                      expanded={query.trim() !== '' || !collapsed.has(group.id)}
+                      expanded={query.trim() !== '' || expanded.has(group.id)}
                       onToggle={() => {
-                        setCollapsed((current) => {
+                        if (!showSearch) paneFocus.current = 'drill'
+                        setExpanded((current) => {
                           const next = new Set(current)
                           if (!next.delete(group.id)) next.add(group.id)
                           return next
@@ -571,7 +576,7 @@ export function ModelSelect(
                         setHighlightedIndex(null)
                       }}>
                       {group.models.map((model) => {
-                        const index = query.trim() !== '' || !collapsed.has(group.id) ? modelIndex++ : -1
+                        const index = query.trim() !== '' || expanded.has(group.id) ? modelIndex++ : -1
                         const selected = state.current?.provider === group.id && state.current.model === model.id
                         return (
                           <button

@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-基于 base 的 profile 会在 Host 上挂载 `@deepseek-ai/dsh-plan-model-switch/settings`，由它持有持久设置命名空间。在已有计划模式的 Agent 组合中挂载运行时行。路由交给设置段而不内联在这里，因为部署持有哪些模型不是发布的组合能知道的事实。
+基于 base 的 profile 会在 Host 上挂载 `@deepseek-ai/dsh-plan-model-switch/settings`，由它持有持久设置命名空间。在已有计划模式的 Agent 组合中挂载运行时行。路由通过 `sessionProjections` 读取已记录的计划状态，因此计划控制器可以使用独立的服务隔离域。路由交给设置段而不内联在这里，因为部署持有哪些模型不是发布的组合能知道的事实。
 
 ```yaml
 - name: '@deepseek-ai/dsh-plan-mode'

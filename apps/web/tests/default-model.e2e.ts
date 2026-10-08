@@ -36,6 +36,16 @@ describe('web e2e: the composer model switch is the default for later sessions',
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
 
+  const expandModelProviders = async (): Promise<void> => {
+    for (const heading of await page.locator('[data-menu-group-heading]').all()) {
+      if (await heading.getAttribute('aria-expanded') === 'false') await heading.click()
+    }
+    if (await page.getByRole('searchbox', { name: '搜索模型…' }).count() === 0) {
+      const checked = page.locator('[role="menuitemradio"][aria-checked="true"]')
+      await (await checked.count() > 0 ? checked : page.getByRole('menuitemradio').first()).focus()
+    }
+  }
+
   /** Create one session and its agent through the same wire face the browser uses. */
   const createSession = async (sessionId: string): Promise<string> => {
     const response = await scaffold.ctx.sessionController.create({
@@ -86,6 +96,50 @@ describe('web e2e: the composer model switch is the default for later sessions',
     // one the input is the locked placeholder and no session scope is open.
     await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)
   }, 120_000)
+
+  it('starts provider groups folded, reveals search matches, and folds again on reopening', async () => {
+    const trigger = page.getByRole('button', { name: /^选择模型/ })
+    const open = async (): Promise<void> => {
+      await trigger.click()
+      await page.getByRole('menuitem', { name: /模型/ }).click()
+    }
+    await open()
+    const surface = page.getByRole('group', { name: '模型与推理等级', exact: true })
+    const headings = surface.locator('[data-menu-group-heading]')
+    await expect.poll(() => headings.count()).toBe(3)
+    expect(await headings.evaluateAll(nodes => nodes.map(node => ({
+      provider: node.textContent, expanded: node.getAttribute('aria-expanded'),
+    })))).toMatchInlineSnapshot(`
+      [
+        {
+          "expanded": "false",
+          "provider": "DeepSeek",
+        },
+        {
+          "expanded": "false",
+          "provider": "Origin Gateway",
+        },
+        {
+          "expanded": "false",
+          "provider": "Acme Gateway",
+        },
+      ]
+    `)
+    expect(await surface.getByRole('menuitemradio').count()).toBe(0)
+    await headings.first().click()
+    expect(await surface.getByRole('menuitemradio').count()).toBeGreaterThan(0)
+    const search = surface.getByRole('searchbox')
+    await search.fill('Acme Small')
+    await page.getByRole('menuitemradio', { name: 'Acme Small', exact: true }).waitFor()
+    await surface.getByRole('button', { name: '清除搜索', exact: true }).click()
+    expect(await headings.nth(2).getAttribute('aria-expanded')).toBe('false')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await open()
+    expect(await surface.getByRole('menuitemradio').count()).toBe(0)
+    expect(await headings.evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-expanded'))))
+      .toEqual(['false', 'false', 'false'])
+  })
 
   afterAll(async () => {
     await browser?.close()
@@ -167,6 +221,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     try {
       await page.getByRole('button', { name: /^选择模型/ }).click()
       await page.getByRole('menuitem', { name: /^模型/ }).click()
+      await expandModelProviders()
       const menu = page.getByRole('group', { name: '模型与推理等级', exact: true })
       const menuSearch = page.getByRole('searchbox', { name: '搜索模型…' })
       const order = await readGroups(menu, 'menuitemradio')
@@ -206,6 +261,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
       await setModels(false)
       await trigger.click()
       await page.getByRole('menuitem', { name: /模型/ }).click()
+      await expandModelProviders()
       await expect.poll(() => page.getByRole('menuitemradio').count()).toBe(4)
       expect(await search.count()).toBe(0)
       const current = page.getByRole('menuitemradio', { name: 'Origin Large', exact: true })
@@ -231,6 +287,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
       await setModels(true)
       await trigger.click()
       await page.getByRole('menuitem', { name: /模型/ }).click()
+      await expandModelProviders()
       await expect.poll(() => page.getByRole('menuitemradio').count()).toBe(5)
       await search.waitFor()
       await search.press('Escape')
@@ -252,6 +309,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
       await page.setViewportSize({ width: 1680, height: 220 })
       await trigger.click()
       await page.getByRole('menuitem', { name: /模型/ }).click()
+      await expandModelProviders()
       const scroller = page.getByRole('menu', { name: '模型', exact: true })
       const headings = surface.locator('[data-menu-group-heading]')
       const readPinned = () => headings.evaluateAll(nodes => nodes.map(node => node.hasAttribute('data-stuck')))
@@ -300,6 +358,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
       await page.keyboard.press('Escape')
       await trigger.click()
       await page.getByRole('menuitem', { name: /模型/ }).click()
+      await expandModelProviders()
       expect(await search.inputValue()).toBe('')
       await resetScroll()
     } finally {
@@ -341,6 +400,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     await modelCell.hover()
     expect(await modelCell.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(focusedBackground)
     await modelCell.click()
+    await expandModelProviders()
     const search = page.getByRole('searchbox', { name: '搜索模型…' })
     const rowIds = await page.getByRole('menuitemradio').evaluateAll(rows => rows.map(row => row.id))
     const initialHighlight = rowIds.indexOf(await search.getAttribute('aria-activedescendant') ?? '')
@@ -501,6 +561,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     await compareOrRefreshGolden(fileURLToPath(new URL('./expected/default-model/unselected.expected.md', import.meta.url)), aria, webSnapshotMode())
     await seat.click()
     await page.getByRole('menuitem', { name: /模型/ }).click()
+    await expandModelProviders()
     await page.getByRole('menuitemradio').first().click()
     await expect.poll(async () => box.isEnabled(), { timeout: 15_000 }).toBe(true)
     expect(tripwire.pageErrors).toEqual([])

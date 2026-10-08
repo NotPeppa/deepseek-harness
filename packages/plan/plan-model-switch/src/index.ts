@@ -35,8 +35,8 @@ export type { PhaseRoutes, PlanPhase } from './routes.ts'
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'plan-model-switch'
 
-/** Plan state is this plugin's whole input; compaction is optional. */
-export const inject = ['planMode', 'sessionProjections']
+/** Phase routing reads logged plan state; compaction is optional. */
+export const inject = ['sessionProjections']
 
 /** Settings namespace carrying both phase routes and the fold switch. */
 export const PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE = 'plan-model-switch'
