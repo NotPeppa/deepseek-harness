@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git-Steuerung",
+    "description": "Stellt Clients Git-Checkout-Informationen, Branch-Wechsel und Worktree-Verwaltung bereit."
+  }
+}

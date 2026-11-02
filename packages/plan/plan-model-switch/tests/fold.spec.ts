@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { createUserMessage } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId, type SessionSeq } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { defineContentToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
-import CompactionEngine, { type CompactionResult } from '@deepseek-ai/dsh-compaction'
+import CompactionEngine, { CompactionId, type CompactionResult } from '@deepseek-ai/dsh-compaction'
 import PlanModeController, { EXIT_PLAN_MODE } from '@deepseek-ai/dsh-plan-mode'
 import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
 import type { Config } from '@deepseek-ai/dsh-plan-model-switch'
@@ -39,14 +41,18 @@ class RecordingCompaction extends CompactionEngine {
 
   override compactRegion(start: SessionSeq, end: SessionSeq): Promise<CompactionResult> {
     this.regions.push({ start, end })
-    // The plugin ignores the value and only reports a rejection, so the
-    // minimum shape the contract names is enough here.
+    // The plugin ignores the value and only reports a rejection, so any
+    // well-formed result over the requested span is enough here.
     return Promise.resolve({
-      summary: 'folded',
-      replaced: { start, end },
-      appended: [],
-      tokens: { before: 0, after: 0 },
-    } as unknown as CompactionResult)
+      compactionId: CompactionId('fold-test'),
+      startSeq: SessionSeq(0),
+      summarySeq: SessionSeq(0),
+      endSeq: SessionSeq(0),
+      summary: [{ type: 'text', text: 'folded' }],
+      shadowedRange: { start, end },
+      shadowedSeqs: [start, end],
+      shadowedTokenCount: 0,
+    })
   }
 }
 
@@ -64,6 +70,7 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<{
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(UserQuestionService)
@@ -146,7 +153,10 @@ describe('folding the planning span', () => {
     expect(folded).toContain('Looking around.')
     expect(folded).toContain('Still looking.')
     // The plan the user approved stays, and so does the turn before planning.
-    expect(folded).not.toContain(EXIT_PLAN_MODE)
+    // The exit tool's NAME is protocol traffic — the in-history tool-addition
+    // developer message announces it inside the planning span — so the cut is
+    // checked against the reviewed plan's own text and carrier instead.
+    expect(folded).not.toContain('Plan ready.')
     expect(folded).not.toContain('Do the thing')
     expect(folded).not.toContain('Hi.')
   })

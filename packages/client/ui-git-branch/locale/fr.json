@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Sélecteur de branche Git",
+    "description": "Affiche et change la branche Git extraite de l’espace de travail actuel."
+  }
+}

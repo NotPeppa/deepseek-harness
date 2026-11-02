@@ -61,8 +61,10 @@
   cursor: pointer;
 }
 
-.choose:hover {
-  background: var(--dsw-alias-bg-layer-1);
+@media (hover: hover) {
+  .choose:hover {
+    background: var(--dsw-alias-bg-layer-1);
+  }
 }
 
 .localBadge {

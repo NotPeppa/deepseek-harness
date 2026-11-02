@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { contains, GitController, isPlainSegment, parseWorktrees } from '../src/index.ts'
 import { registerWorktreeTool } from '../src/worktree-tool.ts'
@@ -71,13 +72,17 @@ describe('GitController', () => {
     try {
       await ctx.plugin(SystemPrompt)
       await ctx.plugin(ToolRuntime)
+      await ctx.plugin(NativeToolExecutor)
       registerWorktreeTool(ctx, git)
       await ctx.fiber.await()
-      const result = await ctx.tools.execute({
-        signal: SIGNAL, callId: ToolCallId('invalid-worktree'), name: 'git_worktree',
-        arguments: { operation: 'destroy' },
+      const { results } = await ctx.tools.execute({
+        signal: SIGNAL,
+        calls: [{
+          type: 'tool-call', id: ToolCallId('invalid-worktree'), name: 'git_worktree',
+          arguments: JSON.stringify({ operation: 'destroy' }),
+        }],
       })
-      expect(result.isError).toBe(true)
+      expect(results[0]?.result.isError).toBe(true)
       expect(calls).toEqual([])
     } finally {
       await ctx.fiber.dispose()

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git controller",
+    "description": "Provides clients with Git checkout facts, branch switching, and worktree management."
+  }
+}

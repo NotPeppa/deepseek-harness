@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git-Branch-Auswahl",
+    "description": "Zeigt den ausgecheckten Git-Branch des aktuellen Arbeitsbereichs an und wechselt ihn."
+  }
+}

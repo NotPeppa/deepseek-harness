@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Selector de rama de Git",
+    "description": "Muestra y cambia la rama de Git activa del espacio de trabajo actual."
+  }
+}

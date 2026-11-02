@@ -15,11 +15,11 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { agentModelSelectionRef, installModelSelection } from '@deepseek-ai/dsh-agent'
-import type { Agent, ModelSelection, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
+import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-compaction'
 import { EXIT_PLAN_MODE } from '@deepseek-ai/dsh-plan-mode'
 import type {} from '@deepseek-ai/dsh-plan-mode/types'
+import type { PlanUnitState } from '@deepseek-ai/dsh-plan-mode'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -36,7 +36,7 @@ export type { PhaseRoutes, PlanPhase } from './routes.ts'
 export const name = 'plan-model-switch'
 
 /** Phase routing reads logged plan state; compaction is optional. */
-export const inject = ['sessionProjections']
+export const inject = ['sessionProjections', 'agents']
 
 /** Settings namespace carrying both phase routes and the fold switch. */
 export const PLAN_MODEL_SWITCH_SETTINGS_NAMESPACE = 'plan-model-switch'
@@ -84,14 +84,29 @@ export function apply(ctx: Context, config: Config): void {
     settingsCtx.effect(() => () => { current = () => config }, 'plan-model-switch: settings source')
   })
 
-  // The route is owned by ONE selection per agent — the Session Controller's,
-  // the ACP model control's, or (in a composition with neither) this plugin's.
-  // Installing a second one does not layer: both rewrite the same request
-  // config, the later listener wins, and the loser narrates a switch that never
-  // reached the provider. So the installed reference is reused when there is
-  // one, and only an unowned agent gets ours.
-  const selections = new WeakMap<Agent, ModelSelectionRef>()
+  // The agent owns its selection, so a phase route is one `select()` on the
+  // single owner every other model control also writes through; a second
+  // listener stack would narrate switches that never reach the provider.
   const phases = new WeakMap<Session, PhaseState>()
+
+  // The loop captures a step's selection immediately after claiming its inbox
+  // and before the pre-step waterfall opens, so the route has to be recorded
+  // while the claim is still synchronous: a decision taken inside the waterfall
+  // (or one event later) governs the following step instead of this one.
+  // Claiming is not a publication, so `model.select()` may append here.
+  ctx.on('agent/inbox/claimed', ({ agent }) => {
+    try {
+      const state = planState(ctx, agent.session)
+      const route = routeFor(current(), state.active ? 'planning' : 'executing')
+      // A session that never entered plan mode keeps the route it was created
+      // with; adopting the execution route would switch a session whose user
+      // never planned anything.
+      if (route === undefined || (!state.active && !state.entered)) return
+      select(agent, route)
+    } catch (error: unknown) {
+      ctx.logger.warn('dsh-plan-model-switch: phase route not recorded: %o', error)
+    }
+  })
 
   ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
@@ -115,11 +130,8 @@ export function apply(ctx: Context, config: Config): void {
    * @returns settlement after the route is installed and any fold has landed.
    */
   async function observeBoundary(agent: Agent, signal: AbortSignal): Promise<void> {
-    // Install before any transition can land: a ref installed mid-step would
-    // race the step that is supposed to run under the new route.
-    ensureSelection(agent)
     const routes = current()
-    const active = planActive(ctx, agent.session)
+    const active = planState(ctx, agent.session).active
     const previous = phases.get(agent.session)
     if (previous?.active === active) return
 
@@ -135,18 +147,15 @@ export function apply(ctx: Context, config: Config): void {
     phases.set(agent.session, state)
 
     // First sight of a session that is not planning is a starting state, not a
-    // transition: a session that never plans must keep the route it was
-    // created with rather than silently adopting the execution model.
+    // transition: there is no planning span behind it to fold. A session
+    // already mid-plan when this plugin first saw it (a resume, or a fork)
+    // carries no leading edge and folds nothing either.
     if (!active && previous === undefined) return
 
-    // Route first: a fold that fails must still leave the session on the phase
-    // the user just moved into.
-    select(agent, routeFor(routes, active ? 'planning' : 'executing'))
     // Awaited, not fired and forgotten: the step this boundary opens is the
     // first step of the execution phase, and it is exactly the step that must
-    // not carry the exploration. A session already mid-plan when this plugin
-    // first saw it (a resume, or a fork) carries no leading edge and folds
-    // nothing.
+    // not carry the exploration. The route itself was already recorded when the
+    // step's inbox was claimed.
     if (!active && routes.foldPlanning !== false) await foldPlanning(ctx, agent, state.mark, signal)
   }
 
@@ -157,33 +166,13 @@ export function apply(ctx: Context, config: Config): void {
    *   session's current route alone.
    */
   function select(agent: Agent, route: ModelSelection | undefined): void {
-    const ref = ensureSelection(agent)
     // An unconfigured phase leaves the session on the route it already has,
     // and an unchanged route appends no model-change notice.
-    if (route === undefined || sameRoute(ref.current, route)) return
-    ref.current = route
-    // Prompt assembly already ran for this step (the loop assembles, then opens
-    // the pre-step waterfall plan mode commits in), so the captured selection is
-    // set here too: the step that carries the approved plan is the first step
-    // the new route serves, not the one after it.
-    ref.assembled = route
-  }
-
-  /**
-   * The agent's selection ref: the one the deployment installed, or one of
-   * this plugin's own when nothing owns the route.
-   * @param agent - the agent to route.
-   * @returns the ref whose `current` decides that agent's next request.
-   */
-  function ensureSelection(agent: Agent): ModelSelectionRef {
-    const owned = agentModelSelectionRef(agent.ctx)
-    if (owned !== undefined) return owned
-    const existing = selections.get(agent)
-    if (existing !== undefined) return existing
-    const ref: ModelSelectionRef = { current: undefined, assembled: undefined }
-    selections.set(agent, ref)
-    installModelSelection(agent.ctx, ref)
-    return ref
+    if (route === undefined || sameRoute(agent.model.current(), route)) return
+    // Recorded before the step it governs: the loop captured the step's
+    // selection during preparation, and `select()` is the agent-owned write
+    // that the step activating the approved plan runs under.
+    agent.model.select(route)
   }
 }
 
@@ -193,10 +182,12 @@ export function apply(ctx: Context, config: Config): void {
  * @param session - the session to read.
  * @returns whether plan mode is logged active.
  */
-function planActive(ctx: Context, session: Session): boolean {
-  const state = ctx.sessionProjections.stateOf(session, 'plan')
+function planState(ctx: Context, session: Session): PlanUnitState {
+  // The `plan` key is owned and registered by plan-mode, so this plugin reads
+  // the published fold rather than registering a second handle for the key.
+  const state = ctx.sessionProjections.stateOf(session, 'plan') as PlanUnitState | undefined
   if (state === undefined) throw new Error('plan-model-switch requires the plan session projection')
-  return state.active
+  return state
 }
 
 /**

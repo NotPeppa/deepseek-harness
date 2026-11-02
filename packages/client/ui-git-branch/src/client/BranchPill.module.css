@@ -18,6 +18,7 @@
   padding: 0 8px;
   border: none;
   border-radius: 999px;
+  corner-shape: round;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
@@ -26,9 +27,14 @@
   cursor: pointer;
 }
 
-.pill:not(:disabled):hover,
 .pill[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+@media (hover: hover) {
+  .pill:not(:disabled):hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .pill:disabled {
@@ -101,8 +107,10 @@
   cursor: pointer;
 }
 
-.item:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .item:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .item:disabled {
@@ -158,8 +166,10 @@
   cursor: pointer;
 }
 
-.createOpen:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .createOpen:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .createForm {

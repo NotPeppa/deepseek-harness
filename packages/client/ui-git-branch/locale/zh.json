@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git 分支选择器",
+    "description": "显示并切换当前工作区检出的 Git 分支。"
+  }
+}

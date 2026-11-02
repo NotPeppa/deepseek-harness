@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Contrôleur Git",
+    "description": "Fournit aux clients les informations d’extraction Git, le changement de branche et la gestion des arbres de travail."
+  }
+}

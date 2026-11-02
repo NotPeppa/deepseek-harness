@@ -18,12 +18,11 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
-import { en, zh } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh } from './locales.ts'
 import { PlanModelSwitchCard } from './PlanModelSwitchCard.tsx'
 import { TinyFishCard } from './TinyFishCard.tsx'
 import { PLAN_MODEL_SWITCH_NS, PlanModelSwitchCardController } from './plan-model-switch-card-controller.ts'
 import { TINYFISH_NS, WEB_NS, TinyFishCardController } from './tinyfish-card-controller.ts'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 
@@ -41,7 +40,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'remot
  */
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-plugins: section dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-plugins: section dictionaries')
 
   const plan = new PlanModelSwitchCardController(ctx.configForms.get(PLAN_MODEL_SWITCH_NS), ctx)
   const tiny = new TinyFishCardController(ctx.configForms.get(TINYFISH_NS), ctx.configForms.get(WEB_NS), ctx)

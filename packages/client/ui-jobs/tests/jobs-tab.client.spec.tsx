@@ -103,7 +103,7 @@ describe('jobs tab title', () => {
   it('draws the glyph before the tab title', () => {
     const titleProps = {
       useTabInfo: () => ({ tab: { title: zh['tab.label'] } }),
-    } as unknown as PropsRuntime<'sidebar.right.pane.tab.title'>
+    } as PropsRuntime<'sidebar.right.pane.tab.title'>
     const { container } = render(<JobsTitle {...titleProps} />)
     expect(container.querySelector('svg')).toBeTruthy()
     expect(container.textContent).toContain(zh['tab.label'])

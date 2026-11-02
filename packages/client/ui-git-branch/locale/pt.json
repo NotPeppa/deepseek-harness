@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Seletor de branch do Git",
+    "description": "Mostra e troca a branch do Git em uso no espaço de trabalho atual."
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-plan-model-switch",
   "description": "Route the planning and execution phases of DeepSeek Harness plan mode to different models, folding the planning span on the way out",
-  "version": "0.2.0-rc.2",
+  "version": "0.2.2-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -23,9 +23,11 @@
       "default": "./lib/settings.js"
     },
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "locale/*.json",
     "lib/index.js",
     "lib/settings.js",
     "lib/types/**/*.d.ts"

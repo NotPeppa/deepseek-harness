@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git branch picker",
+    "description": "Shows and switches the checked-out Git branch of the current workspace."
+  }
+}

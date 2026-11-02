@@ -131,7 +131,7 @@ async function bench(options: {
       state.worktreeDirty = dirtyPath
     },
   }
-  const face = (entry?.inject as unknown as (a: typeof actions) => BranchPillHeroInjected)(actions)
+  const face = (entry?.inject as (a: typeof actions) => Readonly<BranchPillHeroInjected>)(actions)
   return { ctx, calls, state, face, entry, announce: (id: string) => { announce?.(id) } }
 }
 
@@ -152,7 +152,7 @@ describe('ui-git-branch browser plugin', () => {
     const { ctx, calls } = await bench()
     const dock = ctx.slots.entries('conversation.input.left')[0]
     const noop = { sync: () => {}, setBusy: () => {}, setFailure: () => {} }
-    ;(dock?.inject as unknown as (id: string, a: typeof noop) => unknown)('s-1', noop)
+    ;(dock?.inject as (id: string, a: typeof noop) => unknown)('s-1', noop)
     await settle()
     // Not "the current workspace": the chip names the checkout its own session
     // runs in.

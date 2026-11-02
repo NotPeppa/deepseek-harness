@@ -4,10 +4,9 @@ import LlmRuntime, { createUserMessage, type GenerateOptions } from '@deepseek-a
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import AgentRegistry, {
-  installModelSelection, type Agent, type ModelSelectionRef,
-} from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { installModelSelection, type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import * as planModelSwitch from '@deepseek-ai/dsh-plan-model-switch'
@@ -42,6 +41,7 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<C
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
   const choices = Object.assign({}, config)
@@ -50,6 +50,9 @@ async function harness(adapter: MockAdapter, config: Config = ROUTES): Promise<C
   await ctx.plugin(planModelSwitchSettings)
   await ctx.plugin(PlanModeController, PLAN_CONFIG)
   await ctx.plugin(planModelSwitch, config)
+  // Production installs the switch-notice listener for every served agent; the
+  // harness composes the loop directly, so it mounts the same listener.
+  ctx.on('agent/created', ({ agent }) => { installModelSelection(agent.ctx) })
   ctx.llm.registerAdapter(['mock'], adapter)
   return ctx
 }
@@ -227,14 +230,6 @@ describe('an agent whose route another owner already installed', () => {
     ])
     const ctx = await harness(adapter)
     const agent = await ctx.agentLoop.create(SessionId('phase-owned'), { provider: 'mock', model: 'base' })
-    // What the Session Controller installs for every agent it serves: one
-    // selection whose value falls back to the latest logged request header.
-    // A second installation would not layer — both rewrite the same request
-    // config, the later listener wins, and the loser narrates a switch the
-    // provider never saw.
-    const host: ModelSelectionRef = { current: undefined, assembled: undefined }
-    installModelSelection(agent.ctx, host)
-
     await turn(ctx, agent, 'hello')
     ctx.planMode.set(agent, true)
     await turn(ctx, agent, 'design')
@@ -244,7 +239,7 @@ describe('an agent whose route another owner already installed', () => {
 
     // The requests actually moved, which is the whole point.
     expect(models(adapter.requests)).toEqual(['base', 'planner', 'executor', 'executor'])
-    expect(host.current).toMatchObject({ provider: 'mock', model: 'executor' })
+    expect(agent.model.current()).toMatchObject({ provider: 'mock', model: 'executor' })
     // One notice per real handoff — not one per step, which is what a losing
     // second selection produces.
     expect(noticeTexts(agent)).toHaveLength(2)

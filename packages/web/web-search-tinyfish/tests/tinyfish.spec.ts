@@ -80,20 +80,20 @@ describe('TinyFishSearchProvider availability', () => {
 
 describe('TinyFishSearchProvider request mapping', () => {
   it('sends the query as a parameter with X-API-Key auth', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ results: [{ url: 'https://a.test', snippet: 'hi' }] }))
+    const fetchMock = vi.fn(async (_url: URL, _init?: RequestInit) => jsonResponse({ results: [{ url: 'https://a.test', snippet: 'hi' }] }))
     vi.stubGlobal('fetch', fetchMock)
 
     await provider().search({ query: 'hello world', maxResults: 5 })
 
     expect(fetchMock).toHaveBeenCalledOnce()
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    const [url, init] = fetchMock.mock.calls[0]!
     expect(url.toString()).toBe('https://search.tinyfish.test/?query=hello+world')
     expect(init).toMatchObject({ method: 'GET', redirect: 'error' })
-    expect((init.headers as Record<string, string>)['x-api-key']).toBe('tf-key')
+    expect((init?.headers as Record<string, string>)['x-api-key']).toBe('tf-key')
   })
 
   it('resolves the key per search when no literal is configured', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    const fetchMock = vi.fn(async (_url: URL, _init?: RequestInit) => jsonResponse({ results: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const keys = ['first', 'second']
     const resolving = new TinyFishSearchProvider(() => ({
@@ -103,17 +103,17 @@ describe('TinyFishSearchProvider request mapping', () => {
     await resolving.search({ query: 'a' })
     await resolving.search({ query: 'b' })
     const headers = fetchMock.mock.calls
-      .map(call => ((call as unknown as [URL, RequestInit])[1]).headers as Record<string, string>)
+      .map(([, init]) => init?.headers as Record<string, string>)
     expect(headers.map(header => header['x-api-key'])).toEqual(['first', 'second'])
   })
 
   it('forwards the abort signal', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    const fetchMock = vi.fn(async (_url: URL, _init?: RequestInit) => jsonResponse({ results: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const controller = new AbortController()
     await provider().search({ query: 'q' }, controller.signal)
-    const [, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
-    expect(init.signal).toBe(controller.signal)
+    const [, init] = fetchMock.mock.calls[0]!
+    expect(init?.signal).toBe(controller.signal)
   })
 })
 
@@ -136,7 +136,7 @@ describe('TinyFishSearchProvider error handling', () => {
     await expect(provider().search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({
         code: 'WEB_PROVIDER_CREDENTIAL_MISSING',
-        message: expect.stringContaining('invalid key') as unknown as string,
+        message: expect.stringContaining('invalid key') as string,
       }))
   })
 
@@ -176,8 +176,9 @@ describe('TinyFishSearchProvider error handling', () => {
   })
 
   it('surfaces an abort during error-body parse as WEB_ABORTED', async () => {
-    const body = { json: () => Promise.reject(new DOMException('aborted', 'AbortError')), ok: false, status: 500 }
-    vi.stubGlobal('fetch', vi.fn(async () => body as unknown as Response))
+    const response = new Response(null, { status: 500 })
+    vi.spyOn(response, 'json').mockRejectedValue(new DOMException('aborted', 'AbortError'))
+    vi.stubGlobal('fetch', vi.fn(async () => response))
     await expect(provider().search({ query: 'q' }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
@@ -203,15 +204,15 @@ describe('web-search-tinyfish plugin registration', () => {
     const previous = process.env.TINYFISH_API_KEY
     process.env.TINYFISH_API_KEY = 'env-key'
     try {
-      const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+      const fetchMock = vi.fn(async (_url: URL, _init?: RequestInit) => jsonResponse({ results: [] }))
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
       await ctx.plugin(WebRuntime, { searchProvider: TINYFISH_PROVIDER_ID })
       const fiber = await ctx.plugin(tinyfishPlugin, {})
       await ctx.web.search({ query: 'q' })
-      const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+      const [url, init] = fetchMock.mock.calls[0]!
       expect(url.origin).toBe('https://api.search.tinyfish.ai')
-      expect((init.headers as Record<string, string>)['x-api-key']).toBe('env-key')
+      expect((init?.headers as Record<string, string>)['x-api-key']).toBe('env-key')
       await fiber.dispose()
     } finally {
       if (previous === undefined) delete process.env.TINYFISH_API_KEY

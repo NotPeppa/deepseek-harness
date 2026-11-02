@@ -62,7 +62,7 @@ You can attach images and generic files to a `/plan` message, and they are inclu
 
 When the agent has a finished plan, it calls `exit_plan_mode` with the plan written as markdown and starting with a heading. You review that exact plan and choose `Approve` to continue, or `Keep planning` to send the agent back with feedback. After approval, choose the number of worker agents; the lead is not included and coordinates, waits, integrates, and validates instead of owning one worker slot.
 
-Choosing `Keep planning` (optionally with free-text feedback) sends the agent back to revise the plan; closing either question to type a message instead tells the agent to wait for your next message. Execution creates the selected number of workers, assigns a distinct task from the plan to each one, and keeps dependent or overlapping changes ordered. If no interactive review is available, `exit_plan_mode` cannot run and you can still leave plan mode with `/plan off`.
+Choosing `Keep planning` (optionally with free-text feedback) sends the agent back to revise the plan; closing the review to type a message instead ends the agent's turn, and your next message starts the next request. Closing the worker-count question instead tells the agent to stay in plan mode and wait for your next message. Execution creates the selected number of workers, assigns a distinct task from the plan to each one, and keeps dependent or overlapping changes ordered. If no interactive review is available, `exit_plan_mode` cannot run and you can still leave plan mode with `/plan off`.
 
 ### Observing plan state
 
@@ -84,7 +84,7 @@ Plan mode is a product package, not a capability seam: there is no swappable bac
 
 ### Durable state and step-boundary appends
 
-The package persists one log-only whole-value event, `plan/mode`, and the last logged value is the state. A mode change appends immediately when no turn is open; during an open turn it stays pending until the next accepted in-turn pre-step — the only append point while an agent runs — and an append failure cannot block the turn. The `set`/`get` service methods and their exact return states live in [`src/index.ts`](src/index.ts) and read the registered `plan` projection; the first dependent access fails explicitly when the registry or key is absent.
+The package persists one log-only whole-value event, `plan/mode`, and the last logged value is the state. A mode change appends immediately when no turn is open; during an open turn it stays pending until the next accepted in-turn pre-step — the only append point while an agent runs — and an append failure cannot block the turn. The `set`/`get` service methods and their exact return states live in [`src/index.ts`](src/index.ts) and read the retained `plan` projection handle, acquired during activation.
 
 ### The `/plan` command
 
@@ -92,11 +92,13 @@ The command child activates only when a commands service is composed. It maps ba
 
 ### The exit tool
 
-`exit_plan_mode` stays registered while plan mode is inactive, so entering or leaving changes only the prompt section, never the request tool catalog. An approved review asks one generic follow-up for worker-agent concurrency, then records a silent pending exit that the next accepted in-turn pre-step appends. The tool result retains the selected count and delegation instructions in model history while plan guidance remains active for the rest of the current tool batch. Without a user-questions channel, after either question is dismissed, or after a service reload while either question is pending, the call fails closed and `/plan off` remains the manual escape.
+`exit_plan_mode` is disclosed progressively: it is admitted from the first step whose selected plan state is active and stays admitted for the rest of the Session, so entering plan mode the first time adds it together with the guidance, and later transitions change only the guidance; Native and PTC execution use the same admitted set. A call while plan mode is not committed fails. An approved review asks one generic follow-up for worker-agent concurrency, then records a silent pending exit that the next accepted in-turn pre-step appends. The tool result retains the selected count and delegation instructions in model history while plan guidance remains active for the rest of the current tool batch. Without a user-questions channel, after the worker-count question is dismissed, or after a service reload while either question is pending, the call fails closed and `/plan off` remains the manual escape.
 
 ### Session projection unit
 
-When `ctx.sessionProjections` is composed, the package registers the `plan` unit through optional injection. The unit turns logged `/plan` command runs into a candidate target, commits the logged state on `plan/mode`, and derives `{ active, pending }` for `view`, where `pending` is true only while an unsettled or successful selection differs from the logged state — a pure replay quantity recoverable from the log alone. The key merges into `SessionProjectionMap` from [`src/types.ts`](src/types.ts); the framework drives the unit, and unloading the plugin fiber unregisters the key. Plan-mode reads require this unit and the `turnBoundary` unit, and fail explicitly if the registry or either key is absent.
+The package requires `ctx.sessionProjections` and awaits registration of the `plan` unit during activation. Its prompt section is registered before that wait. Agent prompt assembly fails explicitly while the reader is unavailable, so a restored plan cannot run without its guidance. Callers must await plugin activation before running an agent.
+
+The unit turns logged `/plan` command runs into a candidate target, commits the logged state on `plan/mode`, and derives `{ active, pending }` for `view`, where `pending` is true only while an unsettled or successful selection differs from the logged state — a pure replay quantity recoverable from the log alone. The key merges into `SessionProjectionMap` from [`src/types.ts`](src/types.ts); the framework drives the unit, and unloading the plugin fiber unregisters the key. State reads use the retained handle and remain available after unregistration.
 
 ### Source map
 
@@ -105,7 +107,6 @@ When `ctx.sessionProjections` is composed, the package registers the `plan` unit
 | [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, the `ctx.planMode` service, `plan:policy` section, `/plan` command, `exit_plan_mode` tool |
 | [`src/types.ts`](src/types.ts) | The `plan` projection-key declaration and `PlanProjection` wire value |
 | [`src/client.ts`](src/client.ts) | Client-namespace re-export of the types outlet |
-| [`src/invariant.ts`](src/invariant.ts) | Invariant companion: validates the `plan/mode` payload shape |
 
 The review intent carries the originating tool-call id, so the Web client can reopen the same submitted plan after the review closes. The complete Markdown remains in the existing native call or PTC dispatch log.
 
@@ -122,7 +123,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [plan/ package map](../README.md) — the group and its single package.
 - [exit_plan_mode tool catalog entry](../../../docs/tool-catalog.md#deepseek-aidsh-plan-mode) — the exact schema the model receives.
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-plan-mode) — every accepted config field and its meaning.
-- [Plan-specific collaboration state](../../../.agents/notes/implemented/simplification/2026-07-22-plan-specific-collaboration-state.md) — the design decision behind plan mode.
+- [archived Plan-specific collaboration state](../../../.agents/notes/archived/simplification/2026-07-22-plan-specific-collaboration-state.md) — the design decision behind plan mode.
 
 -----
 
@@ -167,15 +168,15 @@ The user block is append-only conversation growth. Entering or leaving plan mode
 
 #### What the model sees
 
-The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#deepseek-aidsh-plan-mode) remains available in both states; execution outside plan mode fails, while an approved in-mode review returns `{ approved: true, execution_agents: number }`. Its rendered result tells the lead to create that many workers, assign each a distinct task, wait for every worker, integrate the results, and validate the plan. Rejection remains a failed call carrying review feedback, and dismissing either question returns a failed call naming the user's takeover.
+The [`exit_plan_mode` schema](../../../docs/tool-catalog.md#deepseek-aidsh-plan-mode) is offered from the first plan-mode entry in a Session; earlier calls return `UNKNOWN_TOOL`, calls after leaving plan mode fail as unavailable outside plan mode, and an approved in-mode review returns `{ approved: true, execution_agents: number }`. Its rendered result tells the lead to create that many workers, assign each a distinct task, wait for every worker, integrate the results, and validate the plan. Rejection remains a failed call carrying review feedback. A dismissed review returns `{ approved: false }`, renders a note that the user will reply, and concludes the turn without another model request; dismissing the worker-count question returns a failed call naming the user's takeover.
 
 #### Token effect
 
-The stable schema is paid according to ToolRuntime mode, and each plan argument and review result remains in conversation history.
+The schema is paid from the first entry on, according to ToolRuntime mode, and each plan argument and review result remains in conversation history.
 
 #### KV Cache effect
 
-Mode transitions do not change the tool catalog; plan arguments and review results extend the conversation normally.
+The first entry into plan mode adds the exit tool through the route’s tool-update protocol; `in-history` and `addition-only` routes record the addition after cached history, while a route without tool updates resends its changed declaration list once. Later transitions leave the tool list unchanged. Plan arguments and review results extend the conversation normally.
 
 ## Known Limitations and Deferred Work
 

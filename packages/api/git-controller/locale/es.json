@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Controlador de Git",
+    "description": "Proporciona a los clientes información del checkout de Git, cambio de rama y gestión de árboles de trabajo."
+  }
+}
