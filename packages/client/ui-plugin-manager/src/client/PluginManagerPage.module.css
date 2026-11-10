@@ -23,6 +23,10 @@
      so an inset above that box leaves a top strip no drag region covers. */
   padding: 0 var(--plugin-page-inset);
   color: var(--dsw-alias-label-primary);
+  /* Translucent while a custom background shows through the centre column's
+     own base (ConversationRoot rides the same token); 100% — unchanged —
+     otherwise. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) var(--dsh-bg-panel-alpha, 100%), transparent);
 }
 
 @media (max-width: 767px) {
@@ -132,12 +136,15 @@
   pointer-events: auto;
 }
 
-.pageBar[data-natural]::before {
+.pageBar[data-natural][data-scrolled]::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
   height: var(--plugin-header-paint-height, var(--plugin-header-rest-height));
-  background: var(--dsw-alias-bg-base);
+  /* At rest the page's own translucent background backs the header; the bar
+     paints only once content scrolls under it, so the two alphas never stack
+     into a darker band. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) var(--dsh-bg-panel-alpha, 100%), transparent);
   pointer-events: none;
 }
 
