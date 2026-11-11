@@ -81,10 +81,13 @@ describe.skipIf(webSnapshotMode() === 'record')('historical preset restoration t
           "id": "plan-execute",
         }
       `)
-      expect(await scaffold.ctx.subagents.listChildren(id)).toEqual([
-        { id: brokenId, createdAt: childFixture[0]?.['createdAt'], mode: 'unknown' },
-        { id: childId, createdAt: childFixture[0]?.['createdAt'], mode: 'one-shot', label: 'historical child' },
-      ])
+      {
+        using observed = await scaffold.ctx.sessionQuery.observeSession(id)
+        expect(observed.projections?.values.subagentCatalog).toEqual([
+          { id: brokenId, createdAt: childFixture[0]?.['createdAt'], mode: 'unknown' },
+          { id: childId, createdAt: childFixture[0]?.['createdAt'], mode: 'one-shot', label: 'historical child' },
+        ])
+      }
 
       const childSuccessor = generationLogPath(scaffold.persistenceRoot, scaffold.workspaceCwd, childId, SESSION_FORMAT_VERSION, 'zstd')
       await expect(readFile(childSuccessor)).rejects.toMatchObject({ code: 'ENOENT' })

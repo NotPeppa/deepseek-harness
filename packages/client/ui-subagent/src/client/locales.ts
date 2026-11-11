@@ -5,6 +5,12 @@ export const NS = 'subagent'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
+  'section.title': '子智能体',
+  'section.empty': '暂无子智能体',
+  'progress.completed': '{count} 已完成',
+  'progress.active': '{count} 进行中',
+  'progress.inactive': '{count} 未运行',
+  'progress.external': '{count} 外部任务',
   'duration.seconds': '{seconds}秒',
   'duration.minutes': '{minutes}分{seconds}秒',
   'duration.hours': '{hours}小时{minutes}分{seconds}秒',
@@ -49,11 +55,16 @@ export const zh = {
   'tab.description': '查看本会话派发的子代理',
   'tab.empty': '本会话还没有子代理。',
   'readonly.oneShot.body': '一次性任务不支持后续消息，可在这里查看完整执行记录。',
-  'readonly.body': '父会话当前不在线，重新打开父会话后即可继续发送消息。',
 } as const
 
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<SubagentKey, string> = {
+  'section.title': 'Subagents',
+  'section.empty': 'No subagents',
+  'progress.completed': '{count} completed',
+  'progress.active': '{count} in progress',
+  'progress.inactive': '{count} not running',
+  'progress.external': '{count} external',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -98,7 +109,6 @@ export const en: Record<SubagentKey, string> = {
   'readonly.oneShot.title': 'One-shot subagent record',
   'readonly.title': 'This subagent is read-only for now',
   'readonly.oneShot.body': 'One-shot tasks do not accept follow-ups; review the full execution record here.',
-  'readonly.body': 'The parent session is offline; reopen it to continue sending messages.',
 }
 
 /** Key domain of the `subagent` namespace (zh is the source of truth). */
@@ -109,6 +119,12 @@ export const ja = {
   'tab.label': 'サブエージェント',
   'tab.description': 'このセッションが委任したサブエージェント',
   'tab.empty': 'このセッションはまだサブエージェントに委任していません。',
+  'section.title': 'サブエージェント',
+  'section.empty': 'サブエージェントはありません',
+  'progress.completed': '{count}件完了',
+  'progress.active': '{count}件進行中',
+  'progress.inactive': '{count}件停止中',
+  'progress.external': '{count}件外部タスク',
   'duration.seconds': '{seconds}秒',
   'duration.minutes': '{minutes}分{seconds}秒',
   'duration.hours': '{hours}時間{minutes}分{seconds}秒',
@@ -150,7 +166,6 @@ export const ja = {
   'readonly.oneShot.title': '単発サブエージェントの記録',
   'readonly.title': 'このサブエージェントは現在読み取り専用です',
   'readonly.oneShot.body': '単発タスクは追加のメッセージを受け付けません。ここで実行記録の全体を確認できます。',
-  'readonly.body': '親セッションがオフラインです。再度開いてメッセージの送信を続けてください。',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -158,6 +173,12 @@ export const es = {
   'tab.label': 'Subagentes',
   'tab.description': 'Los subagentes a los que delegó esta sesión',
   'tab.empty': 'Esta sesión aún no ha delegado a ningún subagente.',
+  'section.title': 'Subagentes',
+  'section.empty': 'No hay subagentes',
+  'progress.completed': '{count} completado',
+  'progress.active': '{count} en progreso',
+  'progress.inactive': '{count} sin ejecutar',
+  'progress.external': '{count} externos',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -199,7 +220,6 @@ export const es = {
   'readonly.oneShot.title': 'Registro de subagente de una sola vez',
   'readonly.title': 'Este subagente es de solo lectura por ahora',
   'readonly.oneShot.body': 'Las tareas únicas no aceptan seguimientos; revise el registro de ejecución completo aquí.',
-  'readonly.body': 'La sesión para padres está fuera de línea; Vuelva a abrirlo para continuar enviando mensajes.',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -207,6 +227,12 @@ export const fr = {
   'tab.label': 'Sous-agents',
   'tab.description': 'Les sous-agents auxquels cette session a délégué',
   'tab.empty': 'Cette session n’a encore délégué à aucun sous-agent.',
+  'section.title': 'Sous-agents',
+  'section.empty': 'Aucun sous-agent',
+  'progress.completed': '{count} terminé',
+  'progress.active': '{count} en cours',
+  'progress.inactive': '{count} à l’arrêt',
+  'progress.external': '{count} externes',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -248,7 +274,6 @@ export const fr = {
   'readonly.oneShot.title': 'Enregistrement de sous-agent unique',
   'readonly.title': 'Ce sous-agent est actuellement en lecture seule',
   'readonly.oneShot.body': 'Les tâches ponctuelles n’acceptent pas de messages de suivi ; consultez leur journal d’exécution complet ici.',
-  'readonly.body': 'La session parente est hors ligne ; rouvrez-la pour continuer à envoyer des messages.',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -256,6 +281,12 @@ export const de = {
   'tab.label': 'Subagenten',
   'tab.description': 'Die Subagenten, an die diese Sitzung delegiert hat',
   'tab.empty': 'Diese Sitzung hat noch an keine Subagenten delegiert.',
+  'section.title': 'Subagenten',
+  'section.empty': 'Keine Subagenten',
+  'progress.completed': '{count} abgeschlossen',
+  'progress.active': '{count} in Bearbeitung',
+  'progress.inactive': '{count} nicht aktiv',
+  'progress.external': '{count} extern',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -297,7 +328,6 @@ export const de = {
   'readonly.oneShot.title': 'Einmaliger Subagentendatensatz',
   'readonly.title': 'Dieser Subagent ist derzeit schreibgeschützt',
   'readonly.oneShot.body': 'Einmalige Aufgaben akzeptieren keine Folgeaufgaben; Sehen Sie sich hier den vollständigen Ausführungsbericht an.',
-  'readonly.body': 'Die übergeordnete Sitzung ist offline. Öffnen Sie es erneut, um weiterhin Nachrichten zu senden.',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -305,6 +335,12 @@ export const ru = {
   'tab.label': 'Субагенты',
   'tab.description': 'Субагенты, которым делегировал этот сеанс',
   'tab.empty': 'Этот сеанс ещё не делегировал задачи субагентам.',
+  'section.title': 'Субагенты',
+  'section.empty': 'Нет субагентов',
+  'progress.completed': '{count} завершено',
+  'progress.active': '{count} в процессе',
+  'progress.inactive': '{count} не выполняются',
+  'progress.external': '{count} внешних',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -346,7 +382,6 @@ export const ru = {
   'readonly.oneShot.title': 'Разовая запись субагента',
   'readonly.title': 'Этот субагент пока доступен только для чтения.',
   'readonly.oneShot.body': 'Одноразовые задачи не допускают последующих действий; просмотреть полную запись выполнения можно здесь.',
-  'readonly.body': 'Родительский сеанс находится в автономном режиме; откройте его повторно, чтобы продолжить отправку сообщений.',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -354,6 +389,12 @@ export const pt = {
   'tab.label': 'Subagentes',
   'tab.description': 'Os subagentes para os quais esta sessão delegou',
   'tab.empty': 'Esta sessão ainda não delegou a nenhum subagente.',
+  'section.title': 'Subagentes',
+  'section.empty': 'Nenhum subagente',
+  'progress.completed': '{count} concluído',
+  'progress.active': '{count} em andamento',
+  'progress.inactive': '{count} sem execução',
+  'progress.external': '{count} externos',
   'duration.seconds': '{seconds}s',
   'duration.minutes': '{minutes}m {seconds}s',
   'duration.hours': '{hours}h {minutes}m {seconds}s',
@@ -395,5 +436,4 @@ export const pt = {
   'readonly.oneShot.title': 'Registro de subagente único',
   'readonly.title': 'Este subagente é somente leitura por enquanto',
   'readonly.oneShot.body': 'Tarefas únicas não aceitam acompanhamentos; revise o registro completo da execução aqui.',
-  'readonly.body': 'A sessão pai está offline; reabra-o para continuar enviando mensagens.',
 } satisfies Record<keyof typeof en, string>
