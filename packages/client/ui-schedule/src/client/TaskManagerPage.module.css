@@ -918,8 +918,9 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* A disabled value stays readable: tertiary rather than dimmed ink. */
-.ruleValue:disabled {
+/* A disabled value stays readable: tertiary rather than dimmed ink. A held
+   editor keeps the enabled tone for the length of one brief request. */
+.ruleValue:disabled:not(.editorHeld *) {
   color: var(--dsw-alias-label-tertiary);
   cursor: default;
 }
@@ -980,8 +981,7 @@
   }
 }
 
-/* A disabled value stays readable: tertiary rather than dimmed ink. */
-.ruleInput:disabled {
+.ruleInput:disabled:not(.editorHeld *) {
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -1077,7 +1077,7 @@
   }
 }
 
-.ruleIntervalArrow:disabled {
+.ruleIntervalArrow:disabled:not(.editorHeld *) {
   color: var(--dsw-alias-label-caption);
   cursor: default;
 }
