@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 当页面在后台、而审批、提问或计划确认正在等待回答时，向浏览器推送一条通知。开关位于 **设置 → 通用**。通知权限由每个浏览器各自授予，Host 只保存通知是否启用。
 
@@ -18,7 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
-- [开发说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -66,6 +66,6 @@ kind: "package-reference"
 - 点击通知会打开发起请求的会话；若通知守护进程丢弃点击回调，视图保持不变。
 
 <a id="dev-note"></a>
-### 开发说明
+### 开发备注
 
 无。

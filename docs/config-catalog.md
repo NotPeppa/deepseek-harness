@@ -2779,7 +2779,7 @@ export interface PlanModeConfig {
 ## `@deepseek-ai/dsh-plan-model-switch`
 
 - `inject`: `sessionProjections` · `agents`
-- `source`: [`packages/plan/plan-model-switch/src/index.ts:48`](../packages/plan/plan-model-switch/src/index.ts)
+- `source`: [`packages/plan/plan-model-switch/src/index.ts:47`](../packages/plan/plan-model-switch/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; the settings section layers over it. */
@@ -5133,6 +5133,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-agent-team` | — | [`packages/client/ui-agent-team/src/index.ts`](../packages/client/ui-agent-team/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-attention` | — | [`packages/client/ui-attention/src/index.ts`](../packages/client/ui-attention/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-brand-official` | — | [`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-chat` | — | [`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-commands` | — | [`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts) |
