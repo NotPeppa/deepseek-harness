@@ -19,6 +19,7 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -292,13 +293,19 @@ describe('the shipped Web composition', () => {
 
   it('mounts plan/execute while its plan controller remains isolated from the Host', async () => {
     expect(ctx.get('planMode')).toBeUndefined()
+    onTestFinished(ctx.llm.registerAdapter(['plan-execute-persona'], new MinimalCompactionAdapter()))
     const handle = await ctx.agents.create({
-      sessionId: SessionId('preset-plan-execute'),
+      sessionId: SessionId(`preset-plan-execute-${randomUUID()}`),
+      agentOptions: { provider: 'plan-execute-persona', model: 'plan-execute-persona' },
       setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'plan-execute').then(() => undefined),
     })
     try {
       expect(ctx.agentPresets.serviceFor(handle.agent, 'planMode')).toBeDefined()
       expect(toolNames(ctx, handle.agent)).toContain('exit_plan_mode')
+      // The persona is a template: every reference must resolve, or prompt
+      // assembly fails before any model request.
+      expect(renderPrompt(await ctx.systemPrompt.assemble({ agent: handle.agent, scope: handle.agent })))
+        .toContain('You are a coding agent powered by the plan-execute-persona model.')
     } finally {
       await handle.dispose()
     }
