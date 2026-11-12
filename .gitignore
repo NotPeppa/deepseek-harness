@@ -44,6 +44,8 @@ apps/cli/docs/
 .ui-review/
 .playwright-mcp/
 .orig
+# dsh-purge backups of the pre-purge overlay files.
+*.dshpurge.bak
 .worktrees/
 worktrees/
 .agents/worktrees/
