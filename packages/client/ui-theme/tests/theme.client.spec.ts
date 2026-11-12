@@ -47,6 +47,7 @@ describe('ThemeRuntime', () => {
       host.publish({ status: 'ready', value: {
         preference: 'light', fontSize: 14, codeFontSize: 13, terminalFontSize: 13,
         textFontFamily: '', codeFontFamily: '', terminalFontFamily: '',
+        backgroundImage: '', backgroundBlur: 0, backgroundOpacity: 30,
       }, revision: 1, writable: true })
       expect(theme.getTheme().preference).toBe('light')
       expect(host.set).not.toHaveBeenCalled()

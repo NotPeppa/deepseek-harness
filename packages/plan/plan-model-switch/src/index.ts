@@ -17,9 +17,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-compaction'
-import { EXIT_PLAN_MODE } from '@deepseek-ai/dsh-plan-mode'
+import { EXIT_PLAN_MODE, planProjectionDefinition } from '@deepseek-ai/dsh-plan-mode'
 import type {} from '@deepseek-ai/dsh-plan-mode/types'
-import type { PlanUnitState } from '@deepseek-ai/dsh-plan-mode'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -73,7 +72,10 @@ interface PhaseState {
  * @param ctx - the plugin context, standing for every joined agent.
  * @param config - fallback routes used when no Host settings owner is mounted.
  */
-export function apply(ctx: Context, config: Config): void {
+export async function apply(ctx: Context, config: Config): Promise<void> {
+  // The plan projection is owned by plan-mode; registering its exported
+  // definition shares that unit and yields the handle this plugin reads.
+  const plan = await ctx.sessionProjections.register(planProjectionDefinition)
   let current: () => Config = () => config
   ctx.inject(['settings'], (settingsCtx) => {
     current = () => {
@@ -96,7 +98,7 @@ export function apply(ctx: Context, config: Config): void {
   // Claiming is not a publication, so `model.select()` may append here.
   ctx.on('agent/inbox/claimed', ({ agent }) => {
     try {
-      const state = planState(ctx, agent.session)
+      const state = plan.stateOf(agent.session)
       const route = routeFor(current(), state.active ? 'planning' : 'executing')
       // A session that never entered plan mode keeps the route it was created
       // with; adopting the execution route would switch a session whose user
@@ -131,7 +133,7 @@ export function apply(ctx: Context, config: Config): void {
    */
   async function observeBoundary(agent: Agent, signal: AbortSignal): Promise<void> {
     const routes = current()
-    const active = planState(ctx, agent.session).active
+    const active = plan.stateOf(agent.session).active
     const previous = phases.get(agent.session)
     if (previous?.active === active) return
 
@@ -174,20 +176,6 @@ export function apply(ctx: Context, config: Config): void {
     // that the step activating the approved plan runs under.
     agent.model.select(route)
   }
-}
-
-/**
- * Read the logged plan-mode state for one session.
- * @param ctx - context owning the projection registry.
- * @param session - the session to read.
- * @returns whether plan mode is logged active.
- */
-function planState(ctx: Context, session: Session): PlanUnitState {
-  // The `plan` key is owned and registered by plan-mode, so this plugin reads
-  // the published fold rather than registering a second handle for the key.
-  const state = ctx.sessionProjections.stateOf(session, 'plan') as PlanUnitState | undefined
-  if (state === undefined) throw new Error('plan-model-switch requires the plan session projection')
-  return state
 }
 
 /**

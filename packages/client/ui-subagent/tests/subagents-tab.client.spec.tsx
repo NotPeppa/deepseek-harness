@@ -29,11 +29,13 @@ function props(projectionsBySession: SessionListState['projectionsBySession'] = 
   const state: SessionListState = { ids: [PARENT, CHILD], byId: { [CHILD]: child }, phase: 'ready', projectionsBySession }
   const openChild = vi.fn()
   const refreshProjection = vi.fn()
+  const prepareCatalog = vi.fn<(id: SessionId) => Promise<void>>().mockResolvedValue()
   const result = {
     sessionId: PARENT, t, useSessions: select => select(state),
-    useSessionStatus: select => select(new Map()), openChild, openChildAside: vi.fn(), refreshProjection,
+    useSessionStatus: select => select(new Map()), openChild, openChildAside: vi.fn(),
+    refreshProjection, prepareCatalog,
   } as SubagentsBodyProps
-  return { ...result, openChild, refreshProjection }
+  return { ...result, openChild, refreshProjection, prepareCatalog }
 }
 
 describe('persistent subagent tab', () => {
@@ -69,7 +71,8 @@ describe('persistent subagent tab', () => {
     const bound = props({ [PARENT]: catalog(), [CHILD]: catalog(GRANDCHILD, 'reviewer') })
     render(<SubagentsBody {...bound} />)
     fireEvent.click(screen.getByRole('button', { name: zh['branch.expand'].replace('{label}', 'worker') }))
-    expect(bound.refreshProjection).toHaveBeenCalledWith(CHILD)
+    expect(bound.prepareCatalog).toHaveBeenCalledWith(CHILD)
+    expect(bound.refreshProjection).not.toHaveBeenCalledWith(CHILD)
     expect(screen.getByText('reviewer', { selector: 'span' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: zh['branch.collapse'].replace('{label}', 'worker') }))
     expect(screen.queryByText('reviewer', { selector: 'span' })).toBeNull()

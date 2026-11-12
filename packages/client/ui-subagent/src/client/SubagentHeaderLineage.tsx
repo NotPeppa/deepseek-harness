@@ -504,7 +504,8 @@ type CatalogDropdownProps = CatalogDropdownSharedProps & (
 export function CatalogDropdown(props: CatalogDropdownProps) {
   const {
     rootSessionId, currentSessionId, displayTitle, openTitle, variant,
-    useSessions, useSessionStatus, openChild, openChildAside, prepareCatalog, t, hasSharedTasks = false,
+    useSessions, useSessionStatus, openChild, openChildAside, refreshProjection, prepareCatalog, t,
+    hasSharedTasks = false,
   } = props
   const ancestorSwitcher = variant === 'switcher' && openTitle !== undefined
   const projections = useSessions(state => state.projectionsBySession)
