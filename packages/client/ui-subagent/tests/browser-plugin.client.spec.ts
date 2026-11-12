@@ -119,7 +119,9 @@ describe('apply', () => {
     ctx.provide('resources', { register: registerResource } as never)
     ctx.provide('sidebarRightTabs', { register: registerTab } as never)
     await vi.waitFor(() => { expect(registerResource).toHaveBeenCalledOnce() })
-    expect(registerTab).toHaveBeenCalledOnce()
+    // Two builtin tab types register on the optional service: the shared-task
+    // chat tab and the subagents list tab.
+    expect(registerTab).toHaveBeenCalledTimes(2)
     expect(ctx.slots.entries('conversation.session.header.actions.subagent.footer')).toHaveLength(1)
   })
 

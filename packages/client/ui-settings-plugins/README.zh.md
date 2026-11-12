@@ -26,7 +26,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-规划/执行模型和 TinyFish 配置页在宿主提供对应配置项时注册到插件页面；保存操作使用 profile 补丁，与其他插件页面共享带版本检查的表单。
+规划/执行模型配置页在宿主提供对应配置项时注册到插件页面；保存操作使用 profile 补丁，与其他插件页面共享带版本检查的表单。
 
 在设置里打开**内置插件**。[ui-settings-plugin-inventory](../ui-settings-plugin-inventory/README.zh.md) 把清单作为分区唯一的标签页贡献进来，直接显示为页面本身；注册第二个标签页后这一行就变成标签行。组合里没有任何标签页贡献的部署会显示分区的空提示。
 

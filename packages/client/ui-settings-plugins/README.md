@@ -26,7 +26,7 @@ Use the **Built-in plugins** settings section to inspect the plugins this deploy
 <a id="use-this-package"></a>
 ## Use this package
 
-The plan/execution model and TinyFish configuration pages register in the Plugins page while their Host configuration entries are served. Saved values use the profile patch and the same revision-fenced forms as other plugin pages.
+The plan/execution model configuration page registers in the Plugins page while its Host configuration entry is served. Saved values use the profile patch and the same revision-fenced forms as other plugin pages.
 
 Open **Built-in plugins** in Settings. [ui-settings-plugin-inventory](../ui-settings-plugin-inventory/README.md) contributes the inventory as the section's one tab, shown as the page itself; a second registered tab turns the row into tabs. A deployment whose composition contributes no tab shows the section's empty line.
 

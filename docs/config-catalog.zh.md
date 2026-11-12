@@ -701,7 +701,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-theme`
 
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/client/ui-theme/src/index.ts:20`](../packages/client/ui-theme/src/index.ts)
+- `source`: [`packages/client/ui-theme/src/index.ts:107`](../packages/client/ui-theme/src/index.ts)
 
 ```ts config-catalog
 /** Runtime preferences projected to the browser. */
@@ -710,6 +710,12 @@ export interface Config {
   preference: Volatile<ThemePreference>
   /** Browser font size in pixels. */
   fontSize: Volatile<number>
+  /** Wallpaper URL; empty disables it. */
+  backgroundImage: Volatile<string>
+  /** Wallpaper blur in pixels. */
+  backgroundBlur: Volatile<number>
+  /** Wallpaper opacity percentage. */
+  backgroundOpacity: Volatile<number>
   /** Code-block font size in pixels. */
   codeFontSize: Volatile<number>
   /** Sidebar terminal font size in pixels. */
@@ -2667,9 +2673,43 @@ export interface Config {
 export interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
+  /** Largest worker-agent count offered after the user approves a plan. */
+  maxExecutionAgents: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plan-mode -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-plan-model-switch -->
+<a id="deepseek-aidsh-plan-model-switch"></a>
+
+## `@deepseek-ai/dsh-plan-model-switch`
+
+- `inject`: `sessionProjections` · `agents`
+- `source`: [`packages/plan/plan-model-switch/src/index.ts:48`](../packages/plan/plan-model-switch/src/index.ts)
+
+```ts config-catalog
+/** Plugin config; the settings section layers over it. */
+export interface Config extends PhaseRoutes {}
+
+/** Flat settings/config shape: one provider/model/effort triple per phase. */
+export interface PhaseRoutes {
+  /** LLM provider serving the planning phase; empty leaves planning unrouted. */
+  planningProvider?: string
+  /** Model serving the planning phase; empty leaves planning unrouted. */
+  planningModel?: string
+  /** Adapter-owned reasoning effort for the planning route. */
+  planningReasoningEffort?: string
+  /** LLM provider serving the execution phase; empty leaves execution unrouted. */
+  executingProvider?: string
+  /** Model serving the execution phase; empty leaves execution unrouted. */
+  executingModel?: string
+  /** Adapter-owned reasoning effort for the execution route. */
+  executingReasoningEffort?: string
+  /** Whether leaving plan mode folds the planning span into one summary. */
+  foldPlanning?: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-plan-model-switch -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->
 <a id="deepseek-aidsh-plugin-manager"></a>
@@ -4642,7 +4682,7 @@ export type ApprovalPolicy = 'ask' | 'never'
 ## `@deepseek-ai/dsh-web`
 
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/web/web/src/index.ts:62`](../packages/web/web/src/index.ts)
+- `source`: [`packages/web/web/src/index.ts:69`](../packages/web/web/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -4897,6 +4937,7 @@ export interface Config {
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | `sessionProjections` | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
 | `@deepseek-ai/dsh-api-account-controller` | `deepseekAccount` · `agents` | [`packages/api/account-controller/src/index.ts`](../packages/api/account-controller/src/index.ts) |
+| `@deepseek-ai/dsh-api-git-controller` | `subprocess` · `workspaceRegistry` | [`packages/api/git-controller/src/index.ts`](../packages/api/git-controller/src/index.ts) |
 | `@deepseek-ai/dsh-api-remote-access` | — | [`packages/api/remote-access/src/index.ts`](../packages/api/remote-access/src/index.ts) |
 | `@deepseek-ai/dsh-api-remotes` | `typertGateway` | [`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts) |
 | `@deepseek-ai/dsh-authorization` | `credentials` | [`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts) |
@@ -4923,6 +4964,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-actions` | — | [`packages/client/ui-file-actions/src/index.ts`](../packages/client/ui-file-actions/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-git-branch` | — | [`packages/client/ui-git-branch/src/index.ts`](../packages/client/ui-git-branch/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-goal` | — | [`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | — | [`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-jobs` | — | [`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts) |

@@ -20,9 +20,7 @@ import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { en, ja, es, fr, de, ru, pt, zh } from './locales.ts'
 import { PlanModelSwitchCard } from './PlanModelSwitchCard.tsx'
-import { TinyFishCard } from './TinyFishCard.tsx'
 import { PLAN_MODEL_SWITCH_NS, PlanModelSwitchCardController } from './plan-model-switch-card-controller.ts'
-import { TINYFISH_NS, WEB_NS, TinyFishCardController } from './tinyfish-card-controller.ts'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 
@@ -43,18 +41,13 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-plugins: section dictionaries')
 
   const plan = new PlanModelSwitchCardController(ctx.configForms.get(PLAN_MODEL_SWITCH_NS), ctx)
-  const tiny = new TinyFishCardController(ctx.configForms.get(TINYFISH_NS), ctx.configForms.get(WEB_NS), ctx)
   ctx.effect(() => () => { plan.dispose() })
   ctx.effect(() => ctx.remote.$on('llm/adapters-updated', () => { plan.refreshCatalog() }))
   ctx.effect(() => ctx.remote.$on('settings/document-updated', () => { plan.refreshCatalog() }))
   ctx.effect(() => ctx.on('connection/reset', () => { plan.resetConnection() }))
-  ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref) => { tiny.refreshCredential(ref) }))
   ctx.effect(() => ctx.configForms.whileServed([PLAN_MODEL_SWITCH_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
     name: 'plugins.item', id: 'plan-model-switch', order: 60, label: () => t('planPhaseTitle'), locale: NS, inject: () => plan.inject(),
   }, PlanModelSwitchCard))))
-  ctx.effect(() => ctx.configForms.whileServed([TINYFISH_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
-    name: 'plugins.item', id: 'tinyfish', order: 50, label: () => t('tinyfishTitle'), locale: NS, inject: () => tiny.inject(),
-  }, TinyFishCard))))
 
   let tabsVersion = -1
   let tabsRevision = -1

@@ -261,9 +261,11 @@ export function ModelSelect(
   }
 
   const moveFocus = (offset: number): void => {
-    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>(
+    const rows = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>(
       'button[role="menuitem"]:not([disabled]), button[role="menuitemradio"]:not([disabled]), button[role="switch"]:not([disabled])',
     ) ?? [])
+    // A fully folded catalog has no rows; the provider headings take the walk.
+    const items = rows.length > 0 ? rows : [...menuRef.current?.querySelectorAll<HTMLButtonElement>('[data-menu-group-heading]') ?? []]
     if (items.length === 0) return
     const active = items.findIndex(item => item === document.activeElement)
     // Focus outside the rows (the trigger, which keeps it while the menu
@@ -312,15 +314,17 @@ export function ModelSelect(
         else close(true)
         return
       }
-      // Settling activates the row the keyboard is on; with focus still on the
-      // trigger, Tab enters the menu at the value in use instead. Any other
-      // control inside the card (a retry button) keeps the browser's traversal,
-      // so the keystroke stays unconsumed there.
+      // Settling activates the row the keyboard is on; on a folded provider
+      // heading it unfolds the group. With focus still on the trigger, Tab
+      // enters the menu at the value in use instead. Any other control inside
+      // the card (a retry button) keeps the browser's traversal, so the
+      // keystroke stays unconsumed there.
       const focused = document.activeElement
       const rows = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>(
         'button[role="menuitem"]:not([disabled]), button[role="menuitemradio"]:not([disabled]), button[role="switch"]:not([disabled])',
       ) ?? [])
-      if (focused instanceof HTMLButtonElement && rows.includes(focused)) {
+      if (focused instanceof HTMLButtonElement && (rows.includes(focused)
+        || menuRef.current?.contains(focused) === true && focused.matches('[data-menu-group-heading]'))) {
         event.preventDefault()
         focused.click()
         return
