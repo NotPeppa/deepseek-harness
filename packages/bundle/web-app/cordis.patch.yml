@@ -356,6 +356,12 @@
     - id: ui-approval
       name: '@deepseek-ai/dsh-client-ui-approval'
 
+    # Browser notification for approval, question, and plan interactions while
+    # the page is hidden. The Host owns the preference; each browser owns the
+    # notification permission.
+    - id: ui-attention
+      name: '@deepseek-ai/dsh-client-ui-attention'
+
     - id: message-quotes
       name: '@deepseek-ai/dsh-message-quotes'
 

@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-12-pending-interaction-browser-notifications.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-12-pending-interaction-browser-notifications.md
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications:
+  en: be6dbfd9a5d2af5b
+  zh: 139f321268616396
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications/problem:
+  en: 685fbd1ef92d6ba1
+  zh: 313a90fd628fcae3
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications/decision:
+  en: 7388943517b614a3
+  zh: 7792d44986af880d
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications/alternatives-considered:
+  en: 84685edfbf6732f5
+  zh: a92747420bd02a80
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications/consequences:
+  en: 2d4e3dcb79c2f29c
+  zh: 46d61f9424186575
+/agent-note-one-pending-interaction-watcher-raises-browser-notifications/testing:
+  en: f12438ad3e50e4e9
+  zh: b5da9f6b297b1bdd
